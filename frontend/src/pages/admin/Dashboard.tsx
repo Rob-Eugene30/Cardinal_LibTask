@@ -13,7 +13,7 @@ export default function Dashboard() {
 
   return (
     <div className="app-shell">
-      {/* LEFT SIDEBAR */}
+      {/* THE LEFT SIDEBAR */}
       <aside className="side">
         <div className="side-brand">
           <div className="side-logo">CL</div>
