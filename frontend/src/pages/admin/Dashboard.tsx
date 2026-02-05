@@ -46,7 +46,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* MAIN */}
+      {/* THE MAIN */}
       <main className="main">
         {/* TOP BAR */}
         <header className="topbar">
