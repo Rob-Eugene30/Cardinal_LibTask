@@ -15,7 +15,6 @@ bearer = HTTPBearer(auto_error=False)
 _JWKS_CACHE: Dict[str, Any] = {"jwks": None, "ts": 0}
 _JWKS_TTL_SECONDS = 60 * 30  # 30 minutes
 
-
 def _jwks_url() -> str:
     # Supabase public JWKS endpoint
     return f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
@@ -124,3 +123,4 @@ def get_current_user(
     if not creds or not creds.credentials:
         unauthorized("Missing Bearer token.")
     return verify_supabase_jwt(creds.credentials)
+
