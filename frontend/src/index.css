@@ -719,3 +719,46 @@ body{
   .tasks-search input{ width: 180px; }
 }
 
+/* ===== STAFF STATUS PILLS ===== */
+
+.status-row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.pill{
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid #d1d5db;
+  background:#fff;
+  font-weight:800;
+  font-size:12px;
+  cursor:pointer;
+  transition:.2s;
+}
+
+/* Not Started */
+.pill-open{
+  background:#fee2e2;
+  border-color:#ef4444;
+  color:#991b1b;
+}
+
+/* In Progress */
+.pill-progress{
+  background:#fef3c7;
+  border-color:#f59e0b;
+  color:#92400e;
+}
+
+/* Done */
+.pill-done{
+  background:#dcfce7;
+  border-color:#22c55e;
+  color:#166534;
+}
+
+.pill:hover{
+  transform:translateY(-1px);
+}
