@@ -117,10 +117,11 @@ def verify_supabase_jwt(token: str) -> dict:
     }
 
 
-def get_current_user(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
-) -> dict:
+def get_current_user(creds=Depends(bearer)) -> dict:
     if not creds or not creds.credentials:
         unauthorized("Missing Bearer token.")
-    return verify_supabase_jwt(creds.credentials)
+    user = verify_supabase_jwt(creds.credentials)
+    user["access_token"] = creds.credentials
+    return user
+
 

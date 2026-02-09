@@ -1,22 +1,32 @@
-from app.db.client import fetch_all, fetch_one, execute
-from app.core.errors import bad_request, not_found
+from app.db.supabase_http import sb_get, sb_post, sb_delete
+from app.core.errors import bad_request
 
-def create_tag(name: str) -> dict:
-    row = fetch_one("select id from tags where name=:name", {"name": name})
-    if row:
-        bad_request("Tag already exists.")
+REST = "/rest/v1"
 
-    created = fetch_one(
-        "insert into tags(name) values(:name) returning id, name",
-        {"name": name},
+
+def list_tags(user_jwt: str) -> list[dict]:
+    return sb_get(
+        f"{REST}/tags",
+        user_jwt=user_jwt,
+        params={"select": "id,name,created_at", "order": "name.asc"},
     )
-    return created
 
-def list_tags() -> list[dict]:
-    return fetch_all("select id, name from tags order by name asc")
 
-def delete_tag(tag_id: int) -> None:
-    row = fetch_one("select id from tags where id=:id", {"id": tag_id})
-    if not row:
-        not_found("Tag not found.")
-    execute("delete from tags where id=:id", {"id": tag_id})
+def create_tag(name: str, user_jwt: str) -> dict:
+    rows = sb_post(
+        f"{REST}/tags",
+        user_jwt=user_jwt,
+        json={"name": name},
+        params={"select": "id,name,created_at"},
+    )
+    if not rows:
+        bad_request("Tag not created.")
+    return rows[0]
+
+
+def delete_tag(tag_id: str, user_jwt: str) -> None:
+    sb_delete(
+        f"{REST}/tags",
+        user_jwt=user_jwt,
+        params={"id": f"eq.{tag_id}"},
+    )

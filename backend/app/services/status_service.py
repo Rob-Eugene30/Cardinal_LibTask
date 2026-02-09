@@ -1,43 +1,62 @@
-from app.db.client import fetch_one, fetch_all, execute
-from app.core.errors import not_found, forbidden, bad_request
+from app.db.supabase_http import sb_get, sb_post, sb_patch
+from app.core.errors import forbidden, not_found, bad_request
 
-ALLOWED_STATUSES = {"open", "in_progress", "blocked", "done", "cancelled"}
+REST = "/rest/v1"
+ALLOWED_STATUSES = {"pending", "in_progress", "done", "cancelled"}
 
-def add_status_update(task_id: int, new_status: str, note: str | None, actor: dict) -> dict:
-    if actor["app_role"] != "admin":
+
+def add_status_update(task_id: str, new_status: str, note: str | None, actor: dict) -> dict:
+    if actor.get("app_role") != "admin":
         forbidden("Only admin can update task status.")
 
     if new_status not in ALLOWED_STATUSES:
         bad_request(f"Invalid status. Allowed: {sorted(ALLOWED_STATUSES)}")
 
-    task = fetch_one("select id from tasks where id=:id", {"id": task_id})
-    if not task:
-        not_found("Task not found.")
+    jwt = actor["access_token"]
 
-    created = fetch_one(
-        """
-        insert into status_updates(task_id, status, note, updated_by)
-        values(:task_id, :status, :note, :updated_by)
-        returning id, task_id, status, note, updated_by, created_at
-        """,
-        {"task_id": task_id, "status": new_status, "note": note, "updated_by": actor["sub"]},
+    # Ensure task exists
+    t = sb_get(
+        f"{REST}/tasks",
+        user_jwt=jwt,
+        params={"select": "id", "id": f"eq.{task_id}", "limit": 1},
     )
-    return created
-
-def list_status_updates(task_id: int, actor: dict) -> list[dict]:
-    # Staff can see status history only for tasks assigned to them
-    task = fetch_one("select id, assigned_to from tasks where id=:id", {"id": task_id})
-    if not task:
+    if not t:
         not_found("Task not found.")
-    if actor["app_role"] != "admin" and task["assigned_to"] != actor["sub"]:
-        forbidden("You can only view status updates for your tasks.")
 
-    return fetch_all(
-        """
-        select id, task_id, status, note, updated_by, created_at
-        from status_updates
-        where task_id=:id
-        order by created_at desc
-        """,
-        {"id": task_id},
+    # Update task.status
+    sb_patch(
+        f"{REST}/tasks",
+        user_jwt=jwt,
+        json={"status": new_status},
+        params={"id": f"eq.{task_id}", "select": "id,status"},
+    )
+
+    # Insert history
+    rows = sb_post(
+        f"{REST}/status_updates",
+        user_jwt=jwt,
+        json={
+            "task_id": task_id,
+            "status": new_status,
+            "note": note,
+            "updated_by": actor["sub"],
+        },
+        params={"select": "*"},
+    )
+    if not rows:
+        bad_request("Status update not recorded.")
+    return rows[0]
+
+
+def list_status_updates(task_id: str, actor: dict) -> list[dict]:
+    jwt = actor["access_token"]
+    # RLS should restrict staff to tasks assigned to them
+    return sb_get(
+        f"{REST}/status_updates",
+        user_jwt=jwt,
+        params={
+            "select": "*",
+            "task_id": f"eq.{task_id}",
+            "order": "created_at.desc",
+        },
     )
