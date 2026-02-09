@@ -1,127 +1,182 @@
-import time
+from __future__ import annotations
+
 from typing import Any, Dict, Optional
 
+import time
 import httpx
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
-from jose.utils import base64url_decode
+from jose.exceptions import JWTError
 
 from app.core.config import settings
-from app.core.errors import unauthorized
+from app.core.errors import unauthorized, bad_request
 
 bearer = HTTPBearer(auto_error=False)
 
-_JWKS_CACHE: Dict[str, Any] = {"jwks": None, "ts": 0}
-_JWKS_TTL_SECONDS = 60 * 30  # 30 minutes
+# Simple in-memory JWKS cache (fine for dev)
+_JWKS_CACHE: dict[str, Any] | None = None
+_JWKS_FETCHED_AT: float | None = None
+_JWKS_TTL_SECONDS = 60 * 10  # 10 minutes
+
 
 def _jwks_url() -> str:
-    # Supabase public JWKS endpoint
-    return f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
-
-
-def _get_jwks() -> dict:
-    now = int(time.time())
-    if _JWKS_CACHE["jwks"] and (now - _JWKS_CACHE["ts"] < _JWKS_TTL_SECONDS):
-        return _JWKS_CACHE["jwks"]
-
     if not settings.SUPABASE_URL:
-        unauthorized("SUPABASE_URL is not configured.")
-
-    with httpx.Client(timeout=10.0) as client:
-        r = client.get(_jwks_url())
-        if r.status_code != 200:
-            unauthorized("Failed to fetch Supabase JWKS.")
-        jwks = r.json()
-
-    _JWKS_CACHE["jwks"] = jwks
-    _JWKS_CACHE["ts"] = now
-    return jwks
+        bad_request("SUPABASE_URL is not configured.")
+    return settings.SUPABASE_URL.rstrip("/") + "/auth/v1/.well-known/jwks.json"
 
 
-def _get_signing_key(token: str) -> dict:
-    headers = jwt.get_unverified_header(token)
-    kid = headers.get("kid")
-    if not kid:
-        unauthorized("Token header missing 'kid'.")
+def _get_jwks(force_refresh: bool = False) -> dict[str, Any]:
+    """
+    Fetch Supabase JWKS (public keys) for asymmetric JWT verification (ES256/RS256).
+    Cached in memory with a short TTL.
+    """
+    global _JWKS_CACHE, _JWKS_FETCHED_AT
 
-    jwks = _get_jwks()
+    now = time.time()
+    if (
+        not force_refresh
+        and _JWKS_CACHE is not None
+        and _JWKS_FETCHED_AT is not None
+        and (now - _JWKS_FETCHED_AT) < _JWKS_TTL_SECONDS
+    ):
+        return _JWKS_CACHE
+
+    url = _jwks_url()
+    with httpx.Client(timeout=10) as client:
+        r = client.get(url)
+        r.raise_for_status()
+        _JWKS_CACHE = r.json()
+        _JWKS_FETCHED_AT = now
+        return _JWKS_CACHE
+
+
+def _expected_issuer() -> str:
+    # Supabase access tokens typically use: https://<ref>.supabase.co/auth/v1
+    if not settings.JWT_ISSUER:
+        bad_request("JWT_ISSUER is not configured.")
+    return settings.JWT_ISSUER
+
+
+def _expected_audience() -> str:
+    # Usually: "authenticated"
+    if not settings.JWT_AUDIENCE:
+        bad_request("JWT_AUDIENCE is not configured.")
+    return settings.JWT_AUDIENCE
+
+
+def _select_jwk(jwks: dict[str, Any], kid: str) -> Optional[dict[str, Any]]:
     keys = jwks.get("keys", [])
+    if not isinstance(keys, list):
+        return None
     for k in keys:
-        if k.get("kid") == kid:
+        if isinstance(k, dict) and k.get("kid") == kid:
             return k
-
-    unauthorized("No matching JWKS key found for token.")
-
-
-def _derive_issuer() -> str:
-    if settings.JWT_ISSUER:
-        return settings.JWT_ISSUER
-    if settings.SUPABASE_URL:
-        # Supabase issuer is typically the project URL
-        return settings.SUPABASE_URL.rstrip("/")
-    return ""
+    return None
 
 
-def verify_supabase_jwt(token: str) -> dict:
-    alg = settings.SUPABASE_JWT_ALG.upper().strip()
+def verify_supabase_jwt(token: str) -> Dict[str, Any]:
+    """
+    Verify a Supabase JWT and return its claims.
 
-    options = {
-        "verify_aud": True,
-        "verify_signature": True,
-        "verify_exp": True,
-        "verify_iss": True,
-    }
+    Supports modern Supabase asymmetric JWT signing (ES256 / RS256) via JWKS.
+    Validates:
+      - signature (using JWKS key by kid)
+      - issuer (iss)
+      - audience (aud)
+      - exp (expiry)
 
-    issuer = _derive_issuer()
-    if not issuer:
-        unauthorized("JWT issuer is not configured.")
+    IMPORTANT:
+      Set in .env:
+        SUPABASE_URL=https://<ref>.supabase.co
+        SUPABASE_JWT_ALG=ES256   (your project uses ES256)
+        JWT_ISSUER=https://<ref>.supabase.co/auth/v1
+        JWT_AUDIENCE=authenticated
+    """
+    if not token:
+        unauthorized("Missing Bearer token.")
 
+    alg = (settings.SUPABASE_JWT_ALG or "ES256").upper()
+    if alg not in ("ES256", "RS256"):
+        unauthorized(f"Unsupported JWT algorithm: {alg}")
+
+    # Get header (kid) so we can pick the right JWKS key
     try:
-        if alg == "HS256":
-            if not settings.SUPABASE_JWT_SECRET:
-                unauthorized("SUPABASE_JWT_SECRET is required for HS256.")
-            claims = jwt.decode(
-                token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                audience=settings.JWT_AUDIENCE,
-                issuer=issuer,
-                options=options,
-            )
-        else:
-            # Default to RS256/JWKS flow
-            jwk_key = _get_signing_key(token)
-            claims = jwt.decode(
-                token,
-                jwk_key,
-                algorithms=[alg],
-                audience=settings.JWT_AUDIENCE,
-                issuer=issuer,
-                options=options,
-            )
+        header = jwt.get_unverified_header(token)
     except Exception:
+        unauthorized("Invalid token header.")
+
+    kid = header.get("kid")
+    if not kid:
+        unauthorized("Token missing 'kid' header.")
+
+    # Fetch JWKS and select key
+    jwks = _get_jwks()
+    jwk_key = _select_jwk(jwks, kid)
+
+    # If key rotated, refresh once
+    if not jwk_key:
+        jwks = _get_jwks(force_refresh=True)
+        jwk_key = _select_jwk(jwks, kid)
+
+    if not jwk_key:
+        unauthorized("Signing key not found for token (kid mismatch).")
+
+    # Decode & verify (jose handles signature + exp + issuer + audience)
+    try:
+        claims = jwt.decode(
+            token,
+            jwk_key,
+            algorithms=[alg],
+            issuer=_expected_issuer(),
+            audience=_expected_audience(),
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_iss": True,
+                "verify_aud": True,
+            },
+        )
+        if not isinstance(claims, dict):
+            unauthorized("Invalid token claims.")
+        return claims
+    except JWTError:
         unauthorized("Invalid or expired token.")
 
-    # Normalize app role:
-    # - Prefer user_metadata.app_role (you control this)
-    # - Default to staff
-    user_metadata = claims.get("user_metadata") or {}
-    app_role = user_metadata.get("app_role") or "staff"
+
+def get_current_user(creds: HTTPAuthorizationCredentials | None = Depends(bearer)) -> Dict[str, Any]:
+    """
+    Dependency: extracts Bearer token, verifies it, and returns a user dict.
+
+    Returns:
+      {
+        "sub": <user_id>,
+        "email": ...,
+        "app_role": "admin"|"staff"|None,
+        "claims": <full claims>,
+        "access_token": <raw token>
+      }
+    """
+    if not creds or not creds.credentials:
+        unauthorized("Missing Bearer token.")
+
+    token = creds.credentials
+    claims = verify_supabase_jwt(token)
+
+    # Role can be in user_metadata or app_metadata depending on setup.
+    app_role = None
+    user_meta = claims.get("user_metadata") or {}
+    app_meta = claims.get("app_metadata") or {}
+
+    if isinstance(user_meta, dict):
+        app_role = user_meta.get("app_role") or user_meta.get("role")
+    if not app_role and isinstance(app_meta, dict):
+        app_role = app_meta.get("app_role") or app_meta.get("role")
 
     return {
         "sub": claims.get("sub"),
         "email": claims.get("email"),
         "app_role": app_role,
         "claims": claims,
+        "access_token": token,
     }
-
-
-def get_current_user(creds=Depends(bearer)) -> dict:
-    if not creds or not creds.credentials:
-        unauthorized("Missing Bearer token.")
-    user = verify_supabase_jwt(creds.credentials)
-    user["access_token"] = creds.credentials
-    return user
-
-
