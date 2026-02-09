@@ -762,3 +762,32 @@ body{
 .pill:hover{
   transform:translateY(-1px);
 }
+/* FIX: make Tasks text visible even if body color is white */
+.tasks-page{
+  color: #1f2937 !important;
+}
+
+.tasks-page .tasks-title,
+.tasks-page .due-title{
+  color: #1f2937 !important;
+}
+
+.tasks-page .tasks-sub,
+.tasks-page .tasks-day-label,
+.tasks-page .due-meta,
+.tasks-page .muted{
+  color: #6b7280 !important;
+}
+
+/* ensure course text/link is visible */
+.tasks-page .due-link{
+  color: #1d4ed8 !important;
+}
+.tasks-page .due-link:hover{
+  color: #d71920 !important;
+}
+
+/* keep the id visible */
+.tasks-page .id{
+  color: rgba(31,41,55,.65) !important;
+}

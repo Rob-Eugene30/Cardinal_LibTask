@@ -1,8 +1,23 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+type Task = {
+  id: string;
+  title: string;
+  dueISO: string;
+  timezoneLabel: string;
+  course: string;
+  color: "green" | "blue" | "purple";
+  status: "Open" | "In Progress" | "Done";
+};
+
+const STORAGE_KEY = "clibtask_admin_tasks_v1";
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  // sample cards (replace with your real data later)
-  const cards = [
+
+  // fallback cards if localStorage is empty
+  const fallbackCards = [
     { code: "TASK-001", title: "(Placeholder)", status: "Open", owner: "(Placeholdername)" },
     { code: "TASK-002", title: "(Placeholder)", status: "Open", owner: "(Placeholdername)" },
     { code: "TASK-003", title: "(Placeholder)", status: "Open", owner: "(Placeholdername)" },
@@ -10,6 +25,54 @@ export default function Dashboard() {
     { code: "TASK-005", title: "(Placeholder)", status: "Open", owner: "(Placeholdername)" },
     { code: "TASK-006", title: "(Placeholder)", status: "Open", owner: "(Placeholdername)" },
   ];
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  function loadTasks() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      setTasks([]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as Task[];
+      setTasks(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setTasks([]);
+    }
+  }
+
+  // load initially + when tasks are updated (same-tab)
+  useEffect(() => {
+    loadTasks();
+
+    const refresh = () => loadTasks();
+    window.addEventListener("clibtask_tasks_updated", refresh);
+
+    // also refresh when coming back to this tab
+    const onFocus = () => loadTasks();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("clibtask_tasks_updated", refresh);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  // Convert tasks into dashboard card format (keep look)
+  const cards = useMemo(() => {
+    if (!tasks.length) return fallbackCards;
+
+    // show latest 6
+    return tasks.slice(0, 6).map((t) => ({
+      code: t.id,
+      title: t.title || "(Placeholder)",
+      status: t.status,
+      owner: t.course || "(Placeholder Course / Context)",
+    }));
+  }, [tasks]);
+
+  const resultCount = tasks.length ? tasks.length : 80; // keep your original "80 results" look if empty
 
   return (
     <div className="app-shell">
@@ -33,15 +96,31 @@ export default function Dashboard() {
 
         <nav className="side-nav">
           <button className="nav-item active">Dashboard</button>
-          <button type="button"className="nav-item"onClick={() => navigate("/admin/tasks")}>Tasks</button>
-          <button className="nav-item"onClick={() => navigate("/admin/create-tasks")}>Create Task</button>
+
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => navigate("/admin/tasks")}
+          >
+            Tasks
+          </button>
+
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => navigate("/admin/create-tasks")}
+          >
+            Create Task
+          </button>
 
           <button className="nav-item">Tags</button>
           <button className="nav-item">Reports</button>
         </nav>
 
         <div className="side-footer">
-          <button className="nav-item danger" onClick={() => navigate("/login")}>Sign Out</button>
+          <button className="nav-item danger" onClick={() => navigate("/login")}>
+            Sign Out
+          </button>
           <div className="side-small">Privacy • Terms • Accessibility</div>
         </div>
       </aside>
@@ -58,7 +137,9 @@ export default function Dashboard() {
               <input placeholder="Search tasks" />
             </div>
 
-            <button className="ghost-btn">Task Catalog</button>
+            <button className="ghost-btn" onClick={() => navigate("/admin/tasks")}>
+              Task Catalog
+            </button>
           </div>
         </header>
 
@@ -66,7 +147,7 @@ export default function Dashboard() {
         <section className="content">
           <div className="toolbar">
             <div className="toolbar-left">
-              <span className="muted">80 results</span>
+              <span className="muted">{resultCount} results</span>
             </div>
 
             <div className="toolbar-right">
@@ -94,7 +175,12 @@ export default function Dashboard() {
 
           <div className="grid">
             {cards.map((c) => (
-              <article key={c.code} className="card">
+              <article
+                key={c.code}
+                className="card"
+                onClick={() => navigate("/admin/tasks")}
+                style={{ cursor: "pointer" }}
+              >
                 <div className="thumb" />
                 <div className="card-body">
                   <div className="card-code">{c.code}</div>

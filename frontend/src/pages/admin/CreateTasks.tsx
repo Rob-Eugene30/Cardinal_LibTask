@@ -52,39 +52,41 @@ export default function CreateTasks() {
     }
   }, []);
 
-  function addTask() {
-    const safeTitle = title.trim() || "(Placeholder Task Title)";
-    const safeCourse = course.trim() || "(Placeholder Course / Context)";
-    const safeDue = dueISO.trim() || "2026-02-06T23:59:00+08:00";
+function addTask() {
+  const safeTitle = title.trim() || "(Placeholder Task Title)";
+  const safeCourse = course.trim() || "(Placeholder Course / Context)";
+  const safeDue = dueISO.trim() || "2026-02-06T23:59:00+08:00";
 
-    const newTask: Task = {
-      id: nextId(tasks),
-      title: safeTitle,
-      course: safeCourse,
-      dueISO: safeDue,
-      timezoneLabel: "(UTC+8)",
-      color,
-      status,
-    };
+  const newTask: Task = {
+    id: nextId(tasks),
+    title: safeTitle,
+    course: safeCourse,
+    dueISO: safeDue,
+    timezoneLabel: "(UTC+8)",
+    color,
+    status,
+  };
 
-    const updated = [newTask, ...tasks];
+  const updated = [newTask, ...tasks];
 
-    // update state + persist (so Tasks.tsx can read it)
-    setTasks(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  // update state + persist
+  setTasks(updated);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-    // stay on this page (NO navigate)
-    // reset fields so you can add again quickly
-    setTitle("(Placeholder Task Title)");
-    setCourse("(Placeholder Course / Context)");
-    setDueISO("2026-02-06T23:59:00+08:00");
-    setStatus("Open");
-    setColor("green");
+  // ✅ notify other pages in THIS TAB to refresh
+  window.dispatchEvent(new Event("clibtask_tasks_updated"));
 
-    // show quick feedback
-    setSavedMsg(`Saved ${newTask.id}`);
-    window.setTimeout(() => setSavedMsg(""), 1500);
-  }
+  // reset fields
+  setTitle("(Placeholder Task Title)");
+  setCourse("(Placeholder Course / Context)");
+  setDueISO("2026-02-06T23:59:00+08:00");
+  setStatus("Open");
+  setColor("green");
+
+  // feedback
+  setSavedMsg(`Saved ${newTask.id}`);
+  window.setTimeout(() => setSavedMsg(""), 1500);
+}
 
   return (
     <div className="tasks-page">
