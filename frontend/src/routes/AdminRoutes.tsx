@@ -3,19 +3,53 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "../pages/admin/Dashboard";
 import Tasks from "../pages/admin/Tasks";
 import CreateTasks from "../pages/admin/CreateTasks";
+import Reports from "../pages/admin/Reports";
+import RequireRole from "../components/RequireRole";
 
 export default function AdminRoutes() {
   return (
     <Routes>
-      {/* default */}
+      {/* Default redirect */}
       <Route path="/" element={<Navigate to="dashboard" replace />} />
 
-      {/* admin pages */}
-      <Route path="dashboard" element={<Dashboard />} />
-      <Route path="tasks" element={<Tasks />} />
-      <Route path="create-tasks" element={<CreateTasks />} />
+      {/* Protected Admin Pages */}
+      <Route
+        path="dashboard"
+        element={
+          <RequireRole role="admin">
+            <Dashboard />
+          </RequireRole>
+        }
+      />
 
-      {/* fallback */}
+      <Route
+        path="tasks"
+        element={
+          <RequireRole role="admin">
+            <Tasks />
+          </RequireRole>
+        }
+      />
+
+      <Route
+        path="create-tasks"
+        element={
+          <RequireRole role="admin">
+            <CreateTasks />
+          </RequireRole>
+        }
+      />
+
+      <Route
+        path="reports"
+        element={
+          <RequireRole role="admin">
+            <Reports />
+          </RequireRole>
+        }
+      />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
