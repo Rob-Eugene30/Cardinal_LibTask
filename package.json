@@ -10,7 +10,7 @@
     "concurrently": "^9.2.1"
   },
   "scripts": {
-    "backend": "cd backend && uvicorn app.main:create_app --reload --host 127.0.0.1 --port 8000",
+    "backend": "cd backend && .\\venv\\Scripts\\python -m uvicorn app.main:create_app --reload --host 127.0.0.1 --port 8000",
     "frontend": "cd frontend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
