@@ -1,5 +1,20 @@
 {
   "dependencies": {
     "supabase": "^2.75.3"
-  }
+  },
+  "name": "cardinal_libtask",
+  "description": "Cardinal LibTask is a library task tracking application developed as a project for ITS120L – Application Development and Emerging Technologies under Ma’am Maylyn Bautista. It helps organize, monitor, and manage library-related tasks to improve workflow efficiency and accountability.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "scripts": {
+    "backend": "cd backend && uvicorn app.main:create_app --reload --host 127.0.0.1 --port 8000",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
