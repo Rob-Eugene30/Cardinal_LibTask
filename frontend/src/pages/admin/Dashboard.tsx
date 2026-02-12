@@ -95,7 +95,9 @@ export default function Dashboard() {
         </div>
 
         <nav className="side-nav">
-          <button className="nav-item active">Dashboard</button>
+          <button type="button" className="nav-item active" onClick={() => navigate("/admin/dashboard")}>
+            Dashboard
+          </button>
 
           <button
             type="button"
@@ -113,8 +115,21 @@ export default function Dashboard() {
             Create Task
           </button>
 
-          <button className="nav-item">Tags</button>
-          <button className="nav-item">Reports</button>
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => navigate("/admin/tags")}
+          >
+            Tags
+          </button>
+
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => navigate("/admin/reports")}
+          >
+            Reports
+          </button>
         </nav>
 
         <div className="side-footer">

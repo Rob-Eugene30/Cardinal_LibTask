@@ -1,21 +1,39 @@
+import { supabase } from "./supabase";
+
 export type Role = "admin" | "staff";
 
-export function login(role: Role) {
-  localStorage.setItem("role", role);
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
 }
 
-export function logout() {
-  localStorage.removeItem("role");
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 }
 
-export function getRole(): Role | null {
-  return localStorage.getItem("role") as Role | null;
+export async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
-export function isAdmin() {
-  return getRole() === "admin";
-}
+export async function getMyRole(): Promise<Role> {
+  const { data: userRes, error: userErr } = await supabase.auth.getUser();
+  if (userErr) throw userErr;
 
-export function isStaff() {
-  return getRole() === "staff";
+  const uid = userRes.user?.id;
+  if (!uid) throw new Error("Not logged in (missing user id).");
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", uid)
+    .single();
+
+  if (error) throw error;
+
+  const role = data?.role as Role | undefined;
+  if (!role) throw new Error("Profile role is missing.");
+
+  return role;
 }

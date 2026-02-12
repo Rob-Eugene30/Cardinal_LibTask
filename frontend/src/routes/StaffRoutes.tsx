@@ -1,15 +1,24 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "../pages/staff/Dashboard";
+import RequireRole from "../components/RequireRole";
 
 export default function StaffRoutes() {
   return (
     <Routes>
-      {/* when user goes to /staff, redirect to /staff/dashboard */}
+      {/* Default redirect */}
       <Route path="/" element={<Navigate to="dashboard" replace />} />
 
-      <Route path="dashboard" element={<Dashboard />} />
+      {/* Protected Staff Dashboard */}
+      <Route
+        path="dashboard"
+        element={
+          <RequireRole role="staff">
+            <Dashboard />
+          </RequireRole>
+        }
+      />
 
-      {/* fallback */}
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
