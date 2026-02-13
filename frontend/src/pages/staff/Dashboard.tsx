@@ -1,147 +1,91 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { listTasks } from "../../api/tasks";
+import type { Task } from "../../api/tasks";
+import { logout } from "../../lib/auth";
 
-type Task = {
-  id: string;
-  title: string;
-  dueISO: string;
-  timezoneLabel?: string;
-  course: string;
-  color: "green" | "blue" | "purple";
-  status: "Open" | "In Progress" | "Done";
-};
+export default function Dashboard() {
+  const navigate = useNavigate();
 
-const STORAGE_KEY = "clibtask_admin_tasks_v1";
+  const [items, setItems] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-export default function StaffDashboard() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  async function load() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await listTasks();
+      setItems(res.items || []);
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      setErr(msg);
+
+      // If token is invalid/expired or missing, go back to login
+      if (e?.status === 401) {
+        logout();
+        navigate("/login", { replace: true });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    loadTasks();
-
-    // auto-refresh when admin adds task (same browser)
-    window.addEventListener("storage", loadTasks);
-    return () => window.removeEventListener("storage", loadTasks);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function loadTasks() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setTasks([]);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Task[];
-      setTasks(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setTasks([]);
-    }
-  }
-
-  function updateStatus(id: string, status: Task["status"]) {
-    const updated = tasks.map(t =>
-      t.id === id ? { ...t, status } : t
-    );
-
-    setTasks(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  }
-
   return (
-    <div className="app-shell">
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <h2 style={{ margin: 0 }}>My Tasks</h2>
 
-      {/* SIDEBAR */}
-      <aside className="side">
-        <div className="side-brand">
-          <div className="side-logo">CL</div>
-          <div>
-            <div className="side-title">Cardinal</div>
-            <div className="side-sub">Staff</div>
-          </div>
-        </div>
+        <button onClick={load} disabled={loading}>
+          {loading ? "Loading..." : "Refresh"}
+        </button>
 
-        <div className="side-nav">
-          <button className="nav-item active">Dashboard</button>
-        </div>
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login", { replace: true });
+          }}
+        >
+          Logout
+        </button>
+      </div>
 
-        <div className="side-footer">
-          <button
-            className="nav-item danger"
-            onClick={() => location.href = "/login"}
-          >
-            Sign Out
-          </button>
-        </div>
-      </aside>
+      {err && <div style={{ marginTop: 12, color: "crimson" }}>{err}</div>}
 
-      {/* MAIN */}
-      <main className="main">
+      <table
+        cellPadding={8}
+        style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}
+      >
+        <thead>
+          <tr>
+            <th align="left">Title</th>
+            <th align="left">Due</th>
+            <th align="left">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((t) => (
+            <tr key={t.id} style={{ borderTop: "1px solid #ddd" }}>
+              <td>{t.title}</td>
+              <td>{t.due_date ?? "—"}</td>
+              <td>{t.status ?? "—"}</td>
+            </tr>
+          ))}
 
-        <div className="topbar">
-          <h1 className="page-title">Staff Dashboard</h1>
-        </div>
-
-        <div className="content">
-
-          <div className="toolbar">
-            <div className="muted">Tasks assigned by admin</div>
-          </div>
-
-          <div className="grid">
-
-            {tasks.map(task => (
-              <div key={task.id} className="card">
-
-                <div className="thumb"></div>
-
-                <div className="card-body">
-
-                  <div className="card-code">{task.id}</div>
-                  <div className="card-title">{task.title}</div>
-                  <div className="card-status">{task.status}</div>
-
-                  <div className="card-divider"></div>
-
-                  {/* STATUS BUTTONS */}
-
-                  <div className="status-row">
-                    <button
-                      className={`pill ${task.status === "Open" ? "pill-open" : ""}`}
-                      onClick={() => updateStatus(task.id, "Open")}
-                    >
-                      Not Started
-                    </button>
-
-                    <button
-                      className={`pill ${task.status === "In Progress" ? "pill-progress" : ""}`}
-                      onClick={() => updateStatus(task.id, "In Progress")}
-                    >
-                      In Progress
-                    </button>
-
-                    <button
-                      className={`pill ${task.status === "Done" ? "pill-done" : ""}`}
-                      onClick={() => updateStatus(task.id, "Done")}
-                    >
-                      Done
-                    </button>
-                  </div>
-
-
-                  <div className="card-owner" style={{ marginTop: 8 }}>
-                    {task.course}
-                  </div>
-
-                </div>
-
-              </div>
-            ))}
-
-          </div>
-
-        </div>
-
-      </main>
+          {items.length === 0 && (
+            <tr>
+              <td colSpan={3} style={{ padding: 12 }}>
+                {loading ? "Loading…" : "No tasks assigned."}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

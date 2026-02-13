@@ -1,12 +1,18 @@
-from app.core.errors import forbidden
+from fastapi import Depends
 
-def require_admin(user: dict) -> dict:
-    if user.get("app_role") != "admin":
-        forbidden("Admin access required.")
+from app.core.auth import get_current_user
+from app.core.errors import unauthorized
+
+
+def require_admin(user=Depends(get_current_user)):
+    role = user.get("app_role")
+    if role != "admin":
+        unauthorized("Admin access required.")
     return user
 
-def require_staff_or_admin(user: dict) -> dict:
-    # staff is default
-    if user.get("app_role") not in ("admin", "staff"):
-        forbidden("Staff access required.")
+
+def require_staff(user=Depends(get_current_user)):
+    role = user.get("app_role")
+    if role not in ("staff", "admin"):
+        unauthorized("Staff access required.")
     return user

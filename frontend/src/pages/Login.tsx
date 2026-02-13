@@ -13,78 +13,34 @@ export default function Login() {
     e.preventDefault();
     setErr(null);
     setLoading(true);
-
     try {
       await signIn(email, password);
-
-      const role = await getMyRole(); // now always returns "admin" or "staff"
-      if (role === "admin") navigate("/admin/dashboard");
-      else navigate("/staff/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Login failed");
+      const role = await getMyRole();
+      navigate(role === "admin" ? "/admin" : "/staff", { replace: true });
+    } catch (ex: any) {
+      setErr(ex?.message ?? String(ex));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-brand">
-          <div className="school">Cardinal LibTask</div>
-          <h1 className="title">Sign in</h1>
-          <div className="login-accent" />
-        </div>
+    <div style={{ padding: 24, maxWidth: 420, margin: "0 auto" }}>
+      <h1>Cardinal LibTask</h1>
 
-        <form onSubmit={handleLogin}>
-          <label className="login-label">Email</label>
-          <input
-            className="login-input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@libcal.com"
-            autoComplete="email"
-            required
-          />
-
-          <label className="login-label">Password</label>
-          <input
-            className="login-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="admin123"
-            autoComplete="current-password"
-            required
-          />
-
-          {err && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "10px 12px",
-                borderRadius: 10,
-                background: "rgba(215,25,32,.18)",
-                border: "1px solid rgba(215,25,32,.35)",
-                color: "rgba(255,255,255,.92)",
-                fontWeight: 800,
-                fontSize: 13,
-              }}
-            >
-              {err}
-            </div>
-          )}
-
-          <button className="login-primary" type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <div className="login-footer">
-          Uses Supabase Auth + profiles.role to route admin/staff.
-        </div>
-      </div>
+      <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" />
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password"
+          type="password"
+        />
+        {err && <div style={{ color: "crimson" }}>{err}</div>}
+        <button disabled={loading} type="submit">
+          {loading ? "Signing in…" : "Login"}
+        </button>
+      </form>
     </div>
   );
 }

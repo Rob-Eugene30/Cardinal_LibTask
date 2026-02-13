@@ -1,5 +1,6 @@
-import { Navigate } from "react-router-dom";
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { getMyRole } from "../lib/auth";
 
 export default function RequireRole({
@@ -7,19 +8,24 @@ export default function RequireRole({
   children,
 }: {
   role: "admin" | "staff";
-  children: JSX.Element;
+  children: ReactElement;
 }) {
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    async function checkRole() {
-      const userRole = await getMyRole();
-      setAllowed(userRole === role);
-    }
-    checkRole();
+    (async () => {
+      try {
+        const userRole = await getMyRole();
+        // admin can access staff routes
+        const ok = userRole === role || (role === "staff" && userRole === "admin");
+        setAllowed(ok);
+      } catch {
+        setAllowed(false);
+      }
+    })();
   }, [role]);
 
-  if (allowed === null) return null; // loading
+  if (allowed === null) return <div style={{ padding: 16 }}>Checking access…</div>;
   if (!allowed) return <Navigate to="/login" replace />;
 
   return children;

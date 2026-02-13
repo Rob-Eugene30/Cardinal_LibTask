@@ -1,15 +1,44 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Login from "./pages/Login";
+import RequireRole from "./components/RequireRole";
+
 import AdminRoutes from "./routes/AdminRoutes";
 import StaffRoutes from "./routes/StaffRoutes";
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/admin/*" element={<AdminRoutes />} />
-      <Route path="/staff/*" element={<StaffRoutes />} />
-    </Routes>
+    <BrowserRouter>
+      <Routes>
+        {/* Default */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Admin area */}
+        <Route
+          path="/admin/*"
+          element={
+            <RequireRole role="admin">
+              <AdminRoutes />
+            </RequireRole>
+          }
+        />
+
+        {/* Staff area */}
+        <Route
+          path="/staff/*"
+          element={
+            <RequireRole role="staff">
+              <StaffRoutes />
+            </RequireRole>
+          }
+        />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

@@ -1,177 +1,83 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { createTask } from "../../api/tasks";
+import { logout } from "../../lib/auth";
 
-type Task = {
-  id: string;
-  title: string;
-  dueISO: string;
-  timezoneLabel: string;
-  course: string;
-  color: "green" | "blue" | "purple";
-  status: "Open" | "In Progress" | "Done";
-};
+export default function AdminCreateTasks() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
-const STORAGE_KEY = "clibtask_admin_tasks_v1";
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setOk(null);
+    setLoading(true);
 
-function nextId(tasks: Task[]) {
-  let max = 0;
-  for (const t of tasks) {
-    const n = Number(String(t.id).replace("TASK-", ""));
-    if (!Number.isNaN(n)) max = Math.max(max, n);
-  }
-  return `TASK-${String(max + 1).padStart(3, "0")}`;
-}
-
-export default function CreateTasks() {
-  const navigate = useNavigate();
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-
-  // form state (placeholders)
-  const [title, setTitle] = useState("(Placeholder Task Title)");
-  const [course, setCourse] = useState("(Placeholder Course / Context)");
-  const [dueISO, setDueISO] = useState("2026-02-06T23:59:00+08:00");
-  const [status, setStatus] = useState<Task["status"]>("Open");
-  const [color, setColor] = useState<Task["color"]>("green");
-
-  // tiny feedback message
-  const [savedMsg, setSavedMsg] = useState("");
-
-  // load existing tasks
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setTasks([]);
-      return;
-    }
     try {
-      const parsed = JSON.parse(raw) as Task[];
-      setTasks(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setTasks([]);
+      await createTask({
+        title,
+        description: description || null,
+        assigned_to: assignedTo,
+        due_date: dueDate || null,
+      });
+      setOk("Task created.");
+      setTitle("");
+      setDescription("");
+      setAssignedTo("");
+      setDueDate("");
+    } catch (ex: any) {
+      setErr(ex?.message ?? String(ex));
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-function addTask() {
-  const safeTitle = title.trim() || "(Placeholder Task Title)";
-  const safeCourse = course.trim() || "(Placeholder Course / Context)";
-  const safeDue = dueISO.trim() || "2026-02-06T23:59:00+08:00";
-
-  const newTask: Task = {
-    id: nextId(tasks),
-    title: safeTitle,
-    course: safeCourse,
-    dueISO: safeDue,
-    timezoneLabel: "(UTC+8)",
-    color,
-    status,
-  };
-
-  const updated = [newTask, ...tasks];
-
-  // update state + persist
-  setTasks(updated);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-  // ✅ notify other pages in THIS TAB to refresh
-  window.dispatchEvent(new Event("clibtask_tasks_updated"));
-
-  // reset fields
-  setTitle("(Placeholder Task Title)");
-  setCourse("(Placeholder Course / Context)");
-  setDueISO("2026-02-06T23:59:00+08:00");
-  setStatus("Open");
-  setColor("green");
-
-  // feedback
-  setSavedMsg(`Saved ${newTask.id}`);
-  window.setTimeout(() => setSavedMsg(""), 1500);
-}
+  }
 
   return (
-    <div className="tasks-page">
-      <div className="tasks-top">
-        <button className="back-btn" onClick={() => navigate("/admin/dashboard")}>
-          ← Back
+    <div style={{ padding: 16, maxWidth: 640 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <h2 style={{ margin: 0 }}>Create Task</h2>
+        <button
+          onClick={() => {
+            logout();
+            window.location.href = "/login";
+          }}
+        >
+          Logout
         </button>
-
-        <div className="tasks-head">
-          <h2 className="tasks-title">Create Task</h2>
-          <p className="tasks-sub">Add a new task (placeholder form)</p>
-        </div>
       </div>
 
-      {/* FORM PANEL */}
-      <div className="add-panel">
-        <div className="add-grid">
-          <div>
-            <div className="field-label">Title</div>
-            <input
-              className="field"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <div className="field-label">Course / Context</div>
-            <input
-              className="field"
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <div className="field-label">Due (ISO-ish)</div>
-            <input
-              className="field"
-              value={dueISO}
-              onChange={(e) => setDueISO(e.target.value)}
-            />
-            <div className="hint">Example: 2026-02-06T23:59:00+08:00</div>
-          </div>
-
-          <div>
-            <div className="field-label">Status</div>
-            <select
-              className="field"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as Task["status"])}
-            >
-              <option>Open</option>
-              <option>In Progress</option>
-              <option>Done</option>
-            </select>
-          </div>
-
-          <div>
-            <div className="field-label">Color</div>
-            <select
-              className="field"
-              value={color}
-              onChange={(e) => setColor(e.target.value as Task["color"])}
-            >
-              <option value="green">Green</option>
-              <option value="blue">Blue</option>
-              <option value="purple">Purple</option>
-            </select>
-          </div>
-
-          <div className="add-actions">
-            <button className="primary-btn" type="button" onClick={addTask}>
-              + Add
-            </button>
-          </div>
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label>Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} required />
         </div>
 
-        {/* optional feedback */}
-        {savedMsg ? (
-          <div style={{ marginTop: 10, fontWeight: 800, color: "#b31218" }}>
-            {savedMsg}
-          </div>
-        ) : null}
-      </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <label>Description</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label>Assign To (user uuid)</label>
+          <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required />
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label>Due Date</label>
+          <input value={dueDate} onChange={(e) => setDueDate(e.target.value)} type="date" />
+        </div>
+
+        {err && <div style={{ color: "crimson" }}>{err}</div>}
+        {ok && <div style={{ color: "green" }}>{ok}</div>}
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Create"}
+        </button>
+      </form>
     </div>
   );
 }

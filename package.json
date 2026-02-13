@@ -1,20 +1,35 @@
 {
-  "dependencies": {
-    "supabase": "^2.75.3"
-  },
-  "name": "cardinal_libtask",
-  "description": "Cardinal LibTask is a library task tracking application developed as a project for ITS120L – Application Development and Emerging Technologies under Ma’am Maylyn Bautista. It helps organize, monitor, and manage library-related tasks to improve workflow efficiency and accountability.",
+  "name": "cardinal-libtask-frontend",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "web-vitals": "^3.5.0"
+  },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "react-scripts": "5.0.1",
+    "typescript": "4.9.5"
   },
   "scripts": {
-    "backend": "cd backend && .\\venv\\Scripts\\python -m uvicorn app.main:create_app --reload --host 127.0.0.1 --port 8000",
-    "frontend": "cd frontend && npm run dev",
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }
