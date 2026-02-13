@@ -1,5 +1,10 @@
 const API_PREFIX = "/api";
-const TOKEN_KEY = "clt_access_token";
+
+// Keep your primary key
+const PRIMARY_TOKEN_KEY = "clt_access_token";
+
+// Common fallback keys (from older versions / experiments)
+const FALLBACK_TOKEN_KEYS = ["access_token", "token"];
 
 export type ApiError = {
   status: number;
@@ -7,21 +12,65 @@ export type ApiError = {
   body?: unknown;
 };
 
+/**
+ * Tries hard to find the access token:
+ * 1) Our primary key: clt_access_token
+ * 2) Legacy keys: access_token / token
+ * 3) Supabase stored session key: sb-<project-ref>-auth-token (JSON)
+ */
 function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  // 1) primary
+  const primary = localStorage.getItem(PRIMARY_TOKEN_KEY);
+  if (primary) return primary;
+
+  // 2) fallbacks
+  for (const k of FALLBACK_TOKEN_KEYS) {
+    const v = localStorage.getItem(k);
+    if (v) return v;
+  }
+
+  // 3) supabase session (if you ever used supabase-js in the frontend)
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (!key.startsWith("sb-") || !key.endsWith("-auth-token")) continue;
+
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      // Different supabase-js versions may store token in slightly different shapes
+      const token =
+        parsed?.access_token ||
+        parsed?.currentSession?.access_token ||
+        parsed?.session?.access_token;
+
+      if (typeof token === "string" && token.length > 0) return token;
+    } catch {
+      // ignore parse errors
+    }
+  }
+
+  return null;
 }
 
 export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+  // Store in our primary key
+  localStorage.setItem(PRIMARY_TOKEN_KEY, token);
+
+  // Also store in a common key so older code paths still work
+  localStorage.setItem("access_token", token);
 }
 
 export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(PRIMARY_TOKEN_KEY);
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("token");
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
-
   const headers = new Headers(init?.headers);
 
   if (token) {
@@ -48,6 +97,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     : await res.text().catch(() => "");
 
   if (!res.ok) {
+    // If unauthorized, clear token so the app forces re-login
     if (res.status === 401) clearToken();
 
     let message = `Request failed: ${res.status}`;
