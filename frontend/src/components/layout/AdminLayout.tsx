@@ -28,6 +28,7 @@ export default function AdminLayout() {
       { label: "Tasks", to: "/admin/tasks" },
       { label: "Calendar", to: "/admin/calendar" },
       { label: "Audit Trail", to: "/admin/audit-trail" },
+      { label: "Reports", to: "/admin/reports" },
     ],
     []
   );
