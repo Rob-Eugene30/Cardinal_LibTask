@@ -6,6 +6,7 @@ import Tasks from "../pages/admin/Tasks";
 import CreateTasks from "../pages/admin/CreateTasks";
 import Calendar from "../pages/admin/Calendar";
 import AuditTrail from "../pages/admin/AuditTrail";
+import Reports from "../pages/admin/Reports";
 
 export default function AdminRoutes() {
   return (
@@ -17,6 +18,8 @@ export default function AdminRoutes() {
 
         <Route path="calendar" element={<Calendar />} />
         <Route path="audit-trail" element={<AuditTrail />} />
+
+        <Route path="reports" element={<Reports />} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
