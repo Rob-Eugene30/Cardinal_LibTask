@@ -55,7 +55,7 @@ export default function StaffLayout() {
         </div>
       </aside>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
       <main className="stf-main">
         <Outlet />
       </main>
