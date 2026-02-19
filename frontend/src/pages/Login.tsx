@@ -26,13 +26,9 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // 1) Login (stores token)
       await signIn(cleanEmail, password);
-
-      // 2) Resolve role via /api/me (should return db_role)
       const role = await getMyRole();
 
-      // 3) Route by role
       if (role === "admin") navigate("/admin", { replace: true });
       else if (role === "staff") navigate("/staff", { replace: true });
       else setErrorMsg("Your account does not have an assigned role.");
@@ -48,45 +44,41 @@ export default function Login() {
   }
 
   return (
-    <div className="login-shell">
-      <div className="login-card" role="main" aria-label="Login">
+    <div className="login-container">
+      <div className="login-card">
+
+        {/* Branding */}
         <div className="login-brand">
-          <div className="login-logo" aria-hidden="true">
-            CL
-          </div>
-          <div>
-            <div className="login-title">Cardinal LibTask</div>
-            <div className="login-subtitle">Sign in to continue</div>
-          </div>
+          <div className="school">Mapúa University</div>
+          <h1 className="title">Cardinal LibTask</h1>
+          <div className="login-accent" />
         </div>
 
-        <form className="login-form" onSubmit={onSubmit}>
-          <div className="login-field">
-            <label className="login-label" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              className="login-input"
-              type="email"
-              autoComplete="email"
-              placeholder="name@mapua.edu.ph"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </div>
+        <form onSubmit={onSubmit}>
 
-          <div className="login-field">
-            <label className="login-label" htmlFor="password">
-              Password
-            </label>
+          <label className="login-label" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            className="login-input"
+            type="email"
+            placeholder="name@mapua.edu.ph"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+            required
+          />
+
+          <label className="login-label" htmlFor="password">
+            Password
+          </label>
+
+          <div className="pw-wrap">
             <input
               id="password"
               className="login-input"
               type="password"
-              autoComplete="current-password"
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -96,21 +88,23 @@ export default function Login() {
           </div>
 
           {errorMsg && (
-            <div className="login-error" role="alert">
+            <div className="login-error">
               {errorMsg}
             </div>
           )}
 
-          <button className="login-button" type="submit" disabled={loading}>
+          <button
+            className="login-primary"
+            type="submit"
+            disabled={loading}
+          >
             {loading ? "Signing in..." : "Sign In"}
           </button>
 
-          <div className="login-footnote">
-            <span>Need access?</span>{" "}
-            <span className="login-footnote-dim">
-              Contact the librarian/admin to assign your role.
-            </span>
+          <div className="login-footer">
+            Need access? Contact the librarian/admin to assign your role.
           </div>
+
         </form>
       </div>
     </div>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createTask } from "../../api/tasks";
-import { logout } from "../../lib/auth";
 
 export default function AdminCreateTasks() {
   const [title, setTitle] = useState("");
@@ -24,7 +23,8 @@ export default function AdminCreateTasks() {
         assigned_to: assignedTo,
         due_date: dueDate || null,
       });
-      setOk("Task created.");
+
+      setOk("Task created successfully.");
       setTitle("");
       setDescription("");
       setAssignedTo("");
@@ -37,47 +37,65 @@ export default function AdminCreateTasks() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 640 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <h2 style={{ margin: 0 }}>Create Task</h2>
-        <button
-          onClick={() => {
-            logout();
-            window.location.href = "/login";
-          }}
-        >
-          Logout
-        </button>
+    <div className="content">
+
+      {/* CENTER WRAPPER */}
+      <div className="create-wrapper">
+        <div className="adm-form-card create-card">
+          <h2 className="adm-form-title">Create Task</h2>
+
+          <form onSubmit={onSubmit} className="adm-form">
+
+            <div className="adm-form-group">
+              <label>Title</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="adm-form-group">
+              <label>Description</label>
+              <textarea
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="adm-form-group">
+              <label>Assign To (User UUID)</label>
+              <input
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="adm-form-group">
+              <label>Due Date</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+
+            {err && <div className="adm-form-error">{err}</div>}
+            {ok && <div className="adm-form-success">{ok}</div>}
+
+            <button
+              type="submit"
+              className="adm-btn-primary"
+              disabled={loading}
+            >
+              {loading ? "Creating..." : "Create Task"}
+            </button>
+
+          </form>
+        </div>
       </div>
-
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required />
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Assign To (user uuid)</label>
-          <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required />
-        </div>
-
-        <div style={{ display: "grid", gap: 6 }}>
-          <label>Due Date</label>
-          <input value={dueDate} onChange={(e) => setDueDate(e.target.value)} type="date" />
-        </div>
-
-        {err && <div style={{ color: "crimson" }}>{err}</div>}
-        {ok && <div style={{ color: "green" }}>{ok}</div>}
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create"}
-        </button>
-      </form>
     </div>
   );
 }

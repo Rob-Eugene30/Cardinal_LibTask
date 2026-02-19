@@ -6,7 +6,6 @@ import "./AdminLayout.css";
 type NavItem = {
   label: string;
   to: string;
-  icon: string; // using simple emoji/unicode so no icon library needed
 };
 
 export default function AdminLayout() {
@@ -22,33 +21,24 @@ export default function AdminLayout() {
     localStorage.setItem("adminSidebarCollapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
-  // Highlight correct sidebar item even when inside nested routes
   const navItems: NavItem[] = useMemo(
     () => [
-      { label: "Dashboard", to: "/admin", icon: "🏠" },
-      { label: "Tasks", to: "/admin/tasks", icon: "✅" },
-      { label: "Calendar", to: "/admin/calendar", icon: "🗓️" },
-      { label: "Audit Trail", to: "/admin/audit-trail", icon: "🧾" },
+      { label: "Dashboard", to: "/admin" },
+      { label: "Create Task", to: "/admin/create-tasks" },
+      { label: "Tasks", to: "/admin/tasks" },
+      { label: "Calendar", to: "/admin/calendar" },
+      { label: "Audit Trail", to: "/admin/audit-trail" },
     ],
     []
   );
 
-  const pageTitle = useMemo(() => {
-    const path = location.pathname;
-    if (path.startsWith("/admin/tasks")) return "Tasks";
-    if (path.startsWith("/admin/calendar")) return "Calendar";
-    if (path.startsWith("/admin/audit-trail")) return "Audit Trail";
-    return "Dashboard";
-  }, [location.pathname]);
-
   return (
     <div className="adm-shell">
-      {/* Left Sidebar */}
+      {/* Sidebar */}
       <aside className={`adm-sidebar ${collapsed ? "is-collapsed" : ""}`}>
         <div className="adm-sidebar__brand">
-          <div className="adm-brand__logo" aria-hidden="true">
-            CL
-          </div>
+          <div className="adm-brand__logo">CL</div>
+
           {!collapsed && (
             <div className="adm-brand__text">
               <div className="adm-brand__name">Cardinal LibTask</div>
@@ -57,7 +47,7 @@ export default function AdminLayout() {
           )}
         </div>
 
-        <nav className="adm-nav" aria-label="Admin navigation">
+        <nav className="adm-nav">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -68,10 +58,9 @@ export default function AdminLayout() {
               }
               title={collapsed ? item.label : undefined}
             >
-              <span className="adm-nav__icon" aria-hidden="true">
-                {item.icon}
-              </span>
-              {!collapsed && <span className="adm-nav__label">{item.label}</span>}
+              {!collapsed && (
+                <span className="adm-nav__label">{item.label}</span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -83,41 +72,16 @@ export default function AdminLayout() {
               logout();
               navigate("/login", { replace: true });
             }}
-            title={collapsed ? "Logout" : undefined}
           >
-            <span className="adm-nav__icon" aria-hidden="true">
-              ⎋
-            </span>
-            {!collapsed && <span className="adm-nav__label">Logout</span>}
+            {!collapsed && (
+              <span className="adm-nav__label">Logout</span>
+            )}
           </button>
         </div>
       </aside>
 
-      {/* Main Area */}
+      {/* Main Content Only */}
       <main className="adm-main">
-        {/* Top Bar */}
-        <header className="adm-topbar">
-          <button
-            className="adm-topbar__menu"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            ☰
-          </button>
-
-          <div className="adm-topbar__title">{pageTitle}</div>
-
-          <div className="adm-topbar__right">
-            {/* Placeholder user chip for now */}
-            <div className="adm-userchip" title="Logged in">
-              <span className="adm-userchip__dot" aria-hidden="true" />
-              <span className="adm-userchip__text">Admin</span>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
         <section className="adm-content">
           <Outlet />
         </section>

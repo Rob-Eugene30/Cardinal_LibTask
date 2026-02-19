@@ -1,0 +1,121 @@
+/* ============================= */
+/*       STAFF LAYOUT (YELLOW)  */
+/* ============================= */
+
+.stf-shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f4f6f9;
+  font-family: system-ui, sans-serif;
+}
+
+/* SIDEBAR */
+
+.stf-sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+}
+
+/* BRAND */
+
+.stf-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.stf-brand__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f2b705, #d99e04);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(242,183,5,.35);
+}
+
+.stf-brand__title {
+  font-weight: 700;
+}
+
+.stf-brand__sub {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* NAV */
+
+.stf-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stf-nav__item {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.75);
+  cursor: pointer;
+  transition: 0.2s;
+  font-weight: 500;
+}
+
+.stf-nav__item:hover {
+  background: rgba(242,183,5,.15);
+}
+
+.stf-nav__item.is-active {
+  background: linear-gradient(90deg, #f2b705, #d99e04);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(242,183,5,.35);
+}
+
+/* MAIN */
+
+.stf-main {
+  flex: 1;
+  padding: 32px 40px;
+}
+
+/* TASK CARD */
+
+.stf-task-card {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.12);
+  box-shadow: 0 8px 20px rgba(2,6,23,.05);
+  padding: 18px;
+  transition: 0.2s;
+}
+
+.stf-task-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(2,6,23,.12);
+}
+
+/* STATUS BUTTONS */
+
+.stf-status-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background: #f2b705;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.stf-status-btn.danger {
+  background: #dc2626;
+}

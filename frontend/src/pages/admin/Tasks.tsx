@@ -25,39 +25,57 @@ export default function Tasks() {
   }, []);
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Tasks</h2>
-      <button onClick={load} disabled={loading}>
-        {loading ? "Loading..." : "Refresh"}
-      </button>
+    <div className="content">
 
-      {err && <div style={{ marginTop: 12, color: "crimson" }}>{err}</div>}
 
-      <table cellPadding={8} style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}>
-        <thead>
-          <tr>
-            <th align="left">Title</th>
-            <th align="left">Assigned To</th>
-            <th align="left">Due</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((t) => (
-            <tr key={t.id} style={{ borderTop: "1px solid #ddd" }}>
-              <td>{t.title}</td>
-              <td>{t.assigned_to}</td>
-              <td>{t.due_date ?? "—"}</td>
-            </tr>
-          ))}
-          {items.length === 0 && (
-            <tr>
-              <td colSpan={3} style={{ padding: 12 }}>
-                {loading ? "Loading…" : "No tasks."}
-              </td>
-            </tr>
+      {/* TOOLBAR */}
+      <div className="toolbar">
+        <span className="muted">
+          {items.length} {items.length === 1 ? "task" : "tasks"}
+        </span>
+
+        <div className="toolbar-right">
+          <button className="ghost-btn" onClick={load} disabled={loading}>
+            {loading ? "Loading..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {err && (
+        <div style={{ marginBottom: 12, color: "crimson", fontWeight: 700 }}>
+          {err}
+        </div>
+      )}
+
+      {/* TABLE CARD */}
+      <div className="card">
+        <div className="card-body">
+          {loading ? (
+            <p className="muted">Loading tasks...</p>
+          ) : items.length === 0 ? (
+            <p className="muted">No tasks available.</p>
+          ) : (
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Assigned To</th>
+                  <th>Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.title}</td>
+                    <td>{t.assigned_to}</td>
+                    <td>{t.due_date ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 }
