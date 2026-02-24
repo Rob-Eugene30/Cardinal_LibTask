@@ -1,63 +1,86 @@
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { logout } from "../../lib/auth";
 import "./StaffLayout.css";
+
+type NavItem = {
+  label: string;
+  to: string;
+};
 
 export default function StaffLayout() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem("clt_access_token");
-    navigate("/login");
-  };
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem("staffSidebarCollapsed");
+    return saved === "1";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("staffSidebarCollapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  const navItems: NavItem[] = useMemo(
+    () => [
+      { label: "Dashboard", to: "/staff/dashboard" },
+      { label: "My Tasks", to: "/staff/tasks" },
+    ],
+    []
+  );
 
   return (
     <div className="stf-shell">
-      {/* SIDEBAR */}
-      <aside className="stf-sidebar">
-        
-        {/* BRAND */}
-        <div className="stf-brand">
+      {/* Sidebar */}
+      <aside className={`stf-sidebar ${collapsed ? "is-collapsed" : ""}`}>
+        <div className="stf-sidebar__brand">
           <div className="stf-brand__logo">CL</div>
-          <div>
-            <div className="stf-brand__title">Cardinal LibTask</div>
-            <div className="stf-brand__sub">Staff</div>
-          </div>
+
+          {!collapsed && (
+            <div className="stf-brand__text">
+              <div className="stf-brand__name">Cardinal LibTask</div>
+              <div className="stf-brand__sub">Staff</div>
+            </div>
+          )}
         </div>
 
-        {/* NAVIGATION */}
         <nav className="stf-nav">
-          <NavLink
-            to="/staff/dashboard"
-            className={({ isActive }) =>
-              isActive ? "stf-nav__item is-active" : "stf-nav__item"
-            }
-          >
-            Dashboard
-          </NavLink>
-
-          <NavLink
-            to="/staff/tasks"
-            className={({ isActive }) =>
-              isActive ? "stf-nav__item is-active" : "stf-nav__item"
-            }
-          >
-            My Tasks
-          </NavLink>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/staff/dashboard"}
+              className={({ isActive }) =>
+                `stf-nav__item ${isActive ? "is-active" : ""}`
+              }
+              title={collapsed ? item.label : undefined}
+            >
+              {!collapsed && (
+                <span className="stf-nav__label">{item.label}</span>
+              )}
+            </NavLink>
+          ))}
         </nav>
 
-        {/* FOOTER */}
-        <div style={{ marginTop: "auto" }}>
+        <div className="stf-sidebar__footer">
           <button
-            className="stf-nav__item"
-            onClick={handleLogout}
+            className="stf-logout"
+            onClick={() => {
+              logout();
+              navigate("/login", { replace: true });
+            }}
           >
-            Logout
+            {!collapsed && (
+              <span className="stf-nav__label">Logout</span>
+            )}
           </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* Main Content */}
       <main className="stf-main">
-        <Outlet />
+        <section className="stf-content">
+          <Outlet />
+        </section>
       </main>
     </div>
   );

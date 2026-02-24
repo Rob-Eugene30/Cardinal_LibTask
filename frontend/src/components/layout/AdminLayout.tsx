@@ -24,6 +24,7 @@ export default function AdminLayout() {
   const navItems: NavItem[] = useMemo(
     () => [
       { label: "Dashboard", to: "/admin" },
+      { label: "Staff", to: "/admin/AdminStaffList" },
       { label: "Create Task", to: "/admin/create-tasks" },
       { label: "Tasks", to: "/admin/tasks" },
       { label: "Calendar", to: "/admin/calendar" },

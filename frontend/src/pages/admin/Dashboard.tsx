@@ -1,11 +1,20 @@
-import { useEffect, useState } from "react";
-import type { ApiError } from "../../api/http";
+import { useEffect, useMemo, useState } from "react";
 import { getStaff, type StaffProfile } from "../../api/staff";
+
+type Task = {
+  id: string;
+  title: string;
+  assignedTo: string;
+  status: string;
+};
+
+const STORAGE_KEY = "clibtask_admin_tasks_v1";
 
 export default function AdminDashboard() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ApiError | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -19,9 +28,14 @@ export default function AdminDashboard() {
         if (!alive) return;
 
         setStaff(rows);
+
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setTasks(JSON.parse(stored));
+        }
       } catch (e) {
         if (!alive) return;
-        setError(e as ApiError);
+        setError((e as Error)?.message || "Failed to load data.");
       } finally {
         if (!alive) return;
         setLoading(false);
@@ -33,90 +47,102 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  // ===== METRICS =====
+  const libraryStaff = staff.filter((s) => s.role !== "admin");
+
+  const totalStaff = libraryStaff.length;
+
+  const activeTasks = tasks.filter(
+    (t) => t.status === "In Progress"
+  ).length;
+
+  const completedTasks = tasks.filter(
+    (t) => t.status === "Completed"
+  ).length;
+
+  const availableStaff = useMemo(() => {
+    const busyStaffIds = new Set(
+      tasks
+        .filter((t) => t.status === "In Progress")
+        .map((t) => t.assignedTo)
+    );
+
+    return libraryStaff.filter((s) => !busyStaffIds.has(s.id)).length;
+  }, [tasks, libraryStaff]);
+
+  // ===== RECENT ACTIVITY (mock from tasks) =====
+  const recentActivity = tasks.slice(-5).reverse();
+
   return (
-    <div>
-      <div style={{ marginBottom: 14 }}>
-        <h2 style={{ margin: 0 }}>Staff</h2>
-        <p style={{ margin: "6px 0 0", opacity: 0.8 }}>
-          Loaded from backend via <code>/api/staff</code>. Hover cards to test responsiveness.
-        </p>
+    <div className="adm-dashboard">
+      {loading && <div>Loading...</div>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
+
+      {/* ===== HEADER ===== */}
+      <div className="adm-dash-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Here’s what’s happening in the library today.</p>
+        </div>
       </div>
 
-      {/* LOADING */}
-      {loading && (
-        <div style={{ opacity: 0.85, padding: "10px 0" }}>
-          Loading staff…
+      {/* ===== STATS CARDS ===== */}
+      <div className="adm-stats-grid">
+        <div className="adm-stat-card">
+          <div className="adm-stat-title">Total Staff</div>
+          <div className="adm-stat-value">{totalStaff}</div>
         </div>
-      )}
 
-      {/* ERROR (LOUD) */}
-      {error && (
-        <div
-          style={{
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(255, 0, 0, 0.08)",
-            padding: 12,
-            borderRadius: 12,
-            marginBottom: 14,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>
-            Unauthorized / Error fetching staff 😡
-          </div>
-          <div style={{ opacity: 0.9 }}>
-            <div>
-              <strong>Status:</strong> {error.status}
-            </div>
-            <div>
-              <strong>Message:</strong> {error.message}
-            </div>
-          </div>
-          <div style={{ marginTop: 10, opacity: 0.85 }}>
-            Quick checks:
-            <ul style={{ margin: "6px 0 0 18px" }}>
-              <li>Are you logged in as an <strong>admin</strong>?</li>
-              <li>Does <code>GET /api/me</code> show <code>app_role=admin</code> (or <code>db_role=admin</code>)?</li>
-              <li>Does Supabase RLS allow admin to read <code>profiles</code>?</li>
-            </ul>
-          </div>
+        <div className="adm-stat-card">
+          <div className="adm-stat-title">Staff Available</div>
+          <div className="adm-stat-value">{availableStaff}</div>
         </div>
-      )}
 
-      {/* EMPTY STATE */}
-      {!loading && !error && staff.length === 0 && (
-        <div style={{ opacity: 0.85 }}>
-          No staff found (profiles.role = <code>staff</code>).
+        <div className="adm-stat-card">
+          <div className="adm-stat-title">Active Tasks</div>
+          <div className="adm-stat-value">{activeTasks}</div>
         </div>
-      )}
 
-      {/* GRID */}
-      <div className="adm-grid">
-        {staff.map((s) => {
-          const name =
-            (s.full_name && s.full_name.trim()) ||
-            `Staff ${s.id.slice(0, 8)}…`;
+        <div className="adm-stat-card">
+          <div className="adm-stat-title">Completed Tasks</div>
+          <div className="adm-stat-value">{completedTasks}</div>
+        </div>
+      </div>
 
-          return (
-            <div
-              key={s.id}
-              className="adm-card"
-              onClick={() => {
-                // intentionally does nothing for now
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  // intentionally does nothing for now
-                }
-              }}
-              aria-label={`Staff card: ${name}`}
-            >
-              <div className="adm-card__title">{name}</div>
-              <div className="adm-card__sub">Library Staff</div>
+      {/* ===== MAIN GRID ===== */}
+      <div className="adm-main-grid">
+        {/* STAFF LIST */}
+        <div className="adm-panel">
+          <h3>Library Staff</h3>
+          {libraryStaff.map((s) => (
+            <div key={s.id} className="adm-staff-row">
+              {(s.full_name && s.full_name.trim()) ||
+                `User ${s.id.slice(0, 6)}…`}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* RECENT ACTIVITY */}
+        <div className="adm-panel">
+          <h3>Recent Activity</h3>
+
+          {recentActivity.length === 0 && (
+            <div style={{ opacity: 0.6 }}>
+              No recent activity.
+            </div>
+          )}
+
+          {recentActivity.map((task) => (
+            <div key={task.id} className="adm-activity-row">
+              <div className="adm-activity-title">
+                {task.title}
+              </div>
+              <div className="adm-activity-sub">
+                Status: {task.status}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

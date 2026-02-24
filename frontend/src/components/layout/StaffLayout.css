@@ -1,93 +1,185 @@
 /* ============================= */
-/*       STAFF LAYOUT (YELLOW)  */
+/*       STAFF LAYOUT            */
 /* ============================= */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--adm-bg);
+  color: var(--adm-text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ===== SHELL ===== */
 
 .stf-shell {
   display: flex;
   min-height: 100vh;
-  background: #f4f6f9;
-  font-family: system-ui, sans-serif;
+  width: 100%;
 }
 
-/* ================= SIDEBAR ================= */
+/* ===== SIDEBAR ===== */
 
 .stf-sidebar {
   width: 260px;
-  background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
-  color: white;
+  background: #f4b400; /* Yellow */
+  color: #111; /* Dark text for contrast */
+  border-right: 1px solid rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  padding: 18px;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25);
+  transition: width 180ms ease;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.15);
 }
 
-/* ================= BRAND ================= */
+.stf-sidebar.is-collapsed {
+  width: 76px;
+}
 
-.stf-brand {
+/* ===== BRAND ===== */
+
+.stf-sidebar__brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 25px;
+  padding: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .stf-brand__logo {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #f2b705, #d99e04);
+  background: linear-gradient(135deg, #b0211f, #7a1513);
+  color: white;
   display: grid;
   place-items: center;
   font-weight: 800;
-  box-shadow: 0 6px 18px rgba(242, 183, 5, 0.35);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
 }
 
-.stf-brand__title {
-  font-weight: 700;
+.stf-brand__name {
+  color: #111;
 }
 
 .stf-brand__sub {
-  font-size: 12px;
-  opacity: 0.7;
+  color: rgba(0,0,0,0.6);
 }
-
-/* ================= NAV ================= */
+/* ===== NAV ===== */
 
 .stf-nav {
+  padding: 0px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* 🔥 FIXED LINK STYLE (NO MORE BLUE) */
 .stf-nav__item {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: transparent;
-  border: none;
-  text-decoration: none; /* removes underline */
-  color: rgba(255, 255, 255, 0.75); /* removes blue */
-  cursor: pointer;
-  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  color: #111;
+  text-decoration: none;
   font-weight: 500;
-  display: block;
+  transition: background 140ms ease, transform 140ms ease;
 }
 
 .stf-nav__item:hover {
-  background: rgba(242, 183, 5, 0.15);
+  background: rgba(102, 18, 16, 0.08);
+  transform: translateX(4px);
 }
+
+/* ACTIVE NAV */
 
 .stf-nav__item.is-active {
-  background: linear-gradient(90deg, #f2b705, #d99e04);
+  background: #661210; /* Main Red */
   color: white;
   font-weight: 700;
-  box-shadow: 0 6px 16px rgba(242, 183, 5, 0.35);
 }
 
+.stf-nav__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 28px;
+}
+
+.stf-nav__label {
+  font-weight: 600;
+}
+
+/* ===== SIDEBAR FOOTER ===== */
+
+.stf-sidebar__footer {
+  margin-top: auto;
+  padding: 14px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stf-logout {
+  width: 100%;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  outline: none;
+  appearance: none;
+  color: #111;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.stf-logout:hover {
+  background: rgba(102, 18, 16, 0.08);
+}
+
+.stf-logout:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ===== MAIN ===== */
+
+.stf-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ===== USER CHIP ===== */
+
+.stf-userchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: #f9fafb;
+  color: #111827;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.stf-userchip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f4b400;
+  display: inline-block;
+}
 /* ================= MAIN ================= */
 
 .stf-main {
   flex: 1;
-  padding: 32px 40px;
+  padding: 40px;
 }
 
 /* ================= TASK CARD ================= */
@@ -95,32 +187,17 @@
 .stf-task-card {
   background: white;
   border-radius: 14px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  box-shadow: 0 8px 20px rgba(2, 6, 23, 0.05);
-  padding: 18px;
-  transition: 0.2s;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  padding: 20px;
+  transition: 0.2s ease;
 }
 
 .stf-task-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.12);
-}
-/* ================= STATUS BUTTONS ================= */
-
-.stf-status-btn {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: none;
-  background: #f2b705;
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
 }
 
-.stf-status-btn.danger {
-  background: #dc2626;
-}
 /* ================= TASK GRID ================= */
 
 .task-grid {
@@ -129,7 +206,7 @@
   gap: 28px;
 }
 
-/* ================= PROFESSIONAL TASK TILE ================= */
+/* ================= TASK TILE ================= */
 
 .task-tile {
   background: white;
@@ -145,8 +222,6 @@
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
 }
 
-/* Image */
-
 .task-tile__image {
   height: 160px;
   background-size: cover;
@@ -161,13 +236,9 @@
   background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.15));
 }
 
-/* Body */
-
 .task-tile__body {
   padding: 20px;
 }
-
-/* Code */
 
 .task-tile__code {
   font-size: 12px;
@@ -177,16 +248,12 @@
   margin-bottom: 6px;
 }
 
-/* Title */
-
 .task-tile__title {
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 14px;
   color: #0f172a;
 }
-
-/* Meta Row */
 
 .task-tile__meta {
   display: flex;
@@ -195,14 +262,12 @@
   margin-bottom: 16px;
 }
 
-/* Due */
-
 .task-tile__due {
   font-size: 12px;
   color: #6b7280;
 }
 
-/* ================= PROFESSIONAL STATUS BADGE ================= */
+/* ================= STATUS BADGE ================= */
 
 .stf-badge {
   padding: 6px 12px;
@@ -210,50 +275,13 @@
   font-weight: 700;
   border-radius: 999px;
   color: white;
-  transition: 0.2s ease;
 }
 
-/* Badge Colors */
+.stf-badge.red { background: #dc2626; }
+.stf-badge.yellow { background: #f4b400; color: #111; }
+.stf-badge.green { background: #16a34a; }
+.stf-badge.gray { background: #6b7280; }
 
-.stf-badge.red {
-  background: #dc2626;
-}
-
-.stf-badge.yellow {
-  background: #f2b705;
-}
-
-.stf-badge.green {
-  background: #16a34a;
-}
-
-.stf-badge.gray {
-  background: #6b7280;
-}
-
-/* ================= ACTION BUTTONS (Cleaner Style) ================= */
-
-.stf-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.stf-action-btn {
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  background: #f3f4f6;
-  color: #111827;
-  transition: 0.2s;
-}
-
-.stf-action-btn:hover {
-  background: #e5e7eb;
-}
 /* ================= ACTIVITY STREAM ================= */
 
 .stf-activity {
@@ -271,16 +299,12 @@
   background: rgba(15, 23, 42, 0.1);
 }
 
-/* Individual Item */
-
 .stf-activity-item {
   position: relative;
   margin-bottom: 32px;
   display: flex;
   gap: 20px;
 }
-
-/* Dot */
 
 .stf-activity-item::before {
   content: "";
@@ -290,11 +314,9 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #f2b705;
+  background: #f4b400;
   box-shadow: 0 0 0 4px white;
 }
-
-/* Time Label */
 
 .stf-activity-time {
   font-size: 12px;
@@ -302,8 +324,6 @@
   width: 100px;
   flex-shrink: 0;
 }
-
-/* Content */
 
 .stf-activity-card {
   background: white;

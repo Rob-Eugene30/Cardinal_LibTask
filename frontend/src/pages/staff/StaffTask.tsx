@@ -1,53 +1,35 @@
 import { useEffect, useState } from "react";
+import { listTasks, updateTaskStatus, type Task } from "../../api/tasks";
+import { getSession } from "../../lib/auth";
 
-type TaskStatus =
-  | "Not Yet Started"
-  | "In Progress"
-  | "Finished"
-  | "Abolished";
-
-type Task = {
-  id: string;
-  code: string;
-  title: string;
-  due: string;
-  status: TaskStatus;
-};
-
-const STORAGE_KEY = "clibtask_staff_tasks_v1";
+type TaskStatus = "Not Yet Started" | "In Progress" | "Finished" | "Abolished";
 
 export default function StaffTask() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const session = getSession();
+      const res = await listTasks();
+      const mine = session ? res.items.filter((t) => t.assigned_to === session.user_id) : [];
+      setTasks(mine);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setTasks(JSON.parse(stored));
-    } else {
-      const initial: Task[] = [
-        {
-          id: "1",
-          code: "TASK-001",
-          title: "Organize Library Files",
-          due: "March 2, 2026",
-          status: "Not Yet Started",
-        },
-      ];
-      setTasks(initial);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
-    }
+    load();
   }, []);
 
-  const updateStatus = (id: string, status: TaskStatus) => {
-    const updated = tasks.map(task =>
-      task.id === id ? { ...task, status } : task
-    );
-
-    setTasks(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  const updateStatus = async (id: string, status: TaskStatus) => {
+    await updateTaskStatus(id, status);
+    await load();
   };
 
-  const getStatusClass = (status: TaskStatus) => {
+  const getStatusClass = (status: string | null | undefined) => {
     switch (status) {
       case "Not Yet Started":
         return "red";
@@ -62,72 +44,70 @@ export default function StaffTask() {
     }
   };
 
+  const dueLabel = (iso: string | null | undefined) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  };
+
   return (
     <div>
       <h1 style={{ marginBottom: "24px" }}>My Tasks</h1>
 
-      <div className="task-grid">
-        {tasks.map(task => (
-          <div key={task.id} className="task-tile">
-            
-            <div
-              className="task-tile__image"
-              style={{
-                backgroundImage:
-                  "url('https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800')",
-              }}
-            />
+      {loading ? (
+        <p className="muted">Loading…</p>
+      ) : tasks.length === 0 ? (
+        <div className="stf-task-card">
+          <p>No tasks assigned to you yet.</p>
+        </div>
+      ) : (
+        <div className="task-grid">
+          {tasks.map((task) => (
+            <div key={task.id} className="task-tile">
+              <div
+                className="task-tile__image"
+                style={{
+                  backgroundImage:
+                    "url('https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=800')",
+                }}
+              />
 
-            <div className="task-tile__body">
+              <div className="task-tile__body">
+                <div className="task-tile__code">{task.code ?? "TASK"}</div>
 
-              <div className="task-tile__code">{task.code}</div>
+                <div className="task-tile__title">{task.title}</div>
 
-              <div className="task-tile__title">{task.title}</div>
+                <div className="task-tile__meta">
+                  <span className={`stf-badge ${getStatusClass(task.status)}`}>
+                    {task.status ?? "—"}
+                  </span>
 
-              <div className="task-tile__meta">
-                <span className={`stf-badge ${getStatusClass(task.status)}`}>
-                  {task.status}
-                </span>
+                  <span className="task-tile__due">Due: {dueLabel(task.due_date)}</span>
+                </div>
 
-                <span className="task-tile__due">
-                  Due: {task.due}
-                </span>
+                <div className="stf-actions">
+                  <button className="stf-action-btn" onClick={() => updateStatus(task.id, "Not Yet Started")}>
+                    Not Yet Started
+                  </button>
+
+                  <button className="stf-action-btn" onClick={() => updateStatus(task.id, "In Progress")}>
+                    In Progress
+                  </button>
+
+                  <button className="stf-action-btn" onClick={() => updateStatus(task.id, "Finished")}>
+                    Finished
+                  </button>
+
+                  <button className="stf-action-btn" onClick={() => updateStatus(task.id, "Abolished")}>
+                    Abolished
+                  </button>
+                </div>
               </div>
-
-              <div className="stf-actions">
-                <button
-                  className="stf-action-btn"
-                  onClick={() => updateStatus(task.id, "Not Yet Started")}
-                >
-                  Not Yet Started
-                </button>
-
-                <button
-                  className="stf-action-btn"
-                  onClick={() => updateStatus(task.id, "In Progress")}
-                >
-                  In Progress
-                </button>
-
-                <button
-                  className="stf-action-btn"
-                  onClick={() => updateStatus(task.id, "Finished")}
-                >
-                  Finished
-                </button>
-
-                <button
-                  className="stf-action-btn"
-                  onClick={() => updateStatus(task.id, "Abolished")}
-                >
-                  Abolished
-                </button>
-              </div>
-
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

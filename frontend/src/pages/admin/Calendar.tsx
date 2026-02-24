@@ -33,28 +33,25 @@ export default function CalendarPage() {
     }
   }
 
-  function handleEventDrop(info: any) {
-    console.log("Moved task", info.event.id, "to", info.event.startStr);
-    // we keep it simple for now — no backend update
-  }
-
   return (
-    <div className="content">
-      <div className="calendar-container">
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek",
-          }}
-          events={events}
-          editable={true}
-          eventDrop={handleEventDrop}
-          height="auto"
-        />
-      </div>
+    <div className="canvas-calendar-wrapper">
+      <FullCalendar
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="timeGridWeek"
+        nowIndicator={true}
+        headerToolbar={{
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek",
+        }}
+        allDaySlot={true}
+        expandRows={true}
+        slotMinTime="00:00:00"
+        slotMaxTime="24:00:00"
+        slotDuration="01:00:00"
+        height="auto"
+        events={events}
+      />
     </div>
   );
 }
