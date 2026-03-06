@@ -1,75 +1,73 @@
-// ✅ LOCAL-ONLY AUTH (no backend / no database)
-// This keeps your UI working while you build the real backend later.
+// Auth is now backed by the FastAPI backend + Supabase Auth.
+// The UI does not change; we only replace the local-only mock implementation.
 
-import { clearToken, setToken } from "../api/http";
+import { apiGet, apiPost, clearToken, setToken } from "../api/http";
 
 export type Role = "admin" | "staff";
 
-export type LocalUser = {
+export type Session = {
   user_id: string;
   email: string;
   role: Role;
-  password: string;
-  full_name?: string;
-};
-
-// Demo accounts (edit as you like)
-const USERS: LocalUser[] = [
-  {
-    user_id: "admin-001",
-    email: "admin@mapua.edu.ph",
-    password: "admin123",
-    role: "admin",
-    full_name: "Admin",
-  },
-  {
-    user_id: "staff-001",
-    email: "staff@mapua.edu.ph",
-    password: "staff123",
-    role: "staff",
-    full_name: "Staff",
-  },
-];
-
-const SESSION_KEY = "clt_local_session_v1";
-
-export type LocalSession = {
-  user_id: string;
-  email: string;
-  role: Role;
-  full_name?: string;
   created_at: string;
 };
 
+const SESSION_KEY = "clt_session_v2";
+
+type LoginResponse = {
+  access_token: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string;
+  user?: any;
+};
+
+type MeResponse = {
+  user_id: string;
+  email: string | null;
+  app_role: string | null;
+  db_role: string | null;
+};
+
+function normalizeRole(r: any): Role {
+  const v = (r ?? "").toString().trim().toLowerCase();
+  return v === "admin" ? "admin" : "staff";
+}
+
 export async function signIn(email: string, password: string) {
   const cleanEmail = email.trim().toLowerCase();
-  const user = USERS.find((u) => u.email.toLowerCase() === cleanEmail);
 
-  if (!user || user.password !== password) {
-    throw new Error("Invalid email or password.");
-  }
+  // 1) Login through backend -> Supabase Auth
+  const login = await apiPost<LoginResponse>("/auth/login", {
+    email: cleanEmail,
+    password,
+  });
 
-  const session: LocalSession = {
-    user_id: user.user_id,
-    email: user.email,
-    role: user.role,
-    full_name: user.full_name,
+  if (!login?.access_token) throw new Error("Login failed.");
+
+  // 2) Store bearer token for all subsequent /api requests
+  setToken(login.access_token);
+
+  // 3) Resolve role via backend (/api/me)
+  const me = await apiGet<MeResponse>("/me");
+  const role = normalizeRole(me.db_role || me.app_role);
+
+  const session: Session = {
+    user_id: me.user_id,
+    email: me.email || cleanEmail,
+    role,
     created_at: new Date().toISOString(),
   };
 
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-  // keep token-based code paths happy (even though we won't call the API)
-  setToken(`local-${user.role}-${user.user_id}`);
-
   return session;
 }
 
-export function getSession(): LocalSession | null {
+export function getSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as LocalSession;
+    return JSON.parse(raw) as Session;
   } catch {
     return null;
   }

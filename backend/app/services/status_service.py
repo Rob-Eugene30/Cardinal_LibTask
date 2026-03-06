@@ -2,26 +2,42 @@ from app.db.supabase_http import sb_get, sb_post, sb_patch
 from app.core.errors import forbidden, not_found, bad_request
 
 REST = "/rest/v1"
-ALLOWED_STATUSES = {"pending", "in_progress", "done", "cancelled"}
+
+# These are the exact labels used by the current UI.
+ALLOWED_STATUSES = {
+    "Not Yet Started",
+    "In Progress",
+    "Finished",
+    "On Hold",
+    "Abolished",
+}
+
+
+def _ensure_can_update(task: dict, actor: dict) -> None:
+    """Admin can update any task. Staff can only update tasks assigned to them."""
+    if actor.get("app_role") == "admin":
+        return
+    if task.get("assigned_to") != actor.get("user_id"):
+        forbidden("You can only update tasks assigned to you.")
 
 
 def add_status_update(task_id: str, new_status: str, note: str | None, actor: dict) -> dict:
-    if actor.get("app_role") != "admin":
-        forbidden("Only admin can update task status.")
-
     if new_status not in ALLOWED_STATUSES:
         bad_request(f"Invalid status. Allowed: {sorted(ALLOWED_STATUSES)}")
 
     jwt = actor["access_token"]
 
-    # Ensure task exists
-    t = sb_get(
+    # Fetch the task (RLS will already restrict staff to their own tasks)
+    rows = sb_get(
         f"{REST}/tasks",
         user_jwt=jwt,
-        params={"select": "id", "id": f"eq.{task_id}", "limit": 1},
+        params={"select": "id,assigned_to", "id": f"eq.{task_id}", "limit": 1},
     )
-    if not t:
+    if not rows:
         not_found("Task not found.")
+
+    task = rows[0]
+    _ensure_can_update(task, actor)
 
     # Update task.status
     sb_patch(
@@ -32,25 +48,24 @@ def add_status_update(task_id: str, new_status: str, note: str | None, actor: di
     )
 
     # Insert history
-    rows = sb_post(
+    hist = sb_post(
         f"{REST}/status_updates",
         user_jwt=jwt,
         json={
             "task_id": task_id,
             "status": new_status,
             "note": note,
-            "updated_by": actor["sub"],
+            "updated_by": actor["user_id"],
         },
         params={"select": "*"},
     )
-    if not rows:
+    if not hist:
         bad_request("Status update not recorded.")
-    return rows[0]
+    return hist[0]
 
 
 def list_status_updates(task_id: str, actor: dict) -> list[dict]:
     jwt = actor["access_token"]
-    # RLS should restrict staff to tasks assigned to them
     return sb_get(
         f"{REST}/status_updates",
         user_jwt=jwt,

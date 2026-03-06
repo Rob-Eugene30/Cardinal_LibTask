@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "../../components/layout/AdminLayout.css";
+import { getStaffById, type StaffProfile } from "../../api/staff";
 
 type Staff = {
-  id: string;
+  id: string; // displayed staff code
   name: string;
   email: string;
   address: string;
@@ -15,33 +16,6 @@ type Staff = {
   employeeSince: string;
 };
 
-const MOCK: Staff[] = [
-  {
-    id: "S-001",
-    name: "John Smith",
-    email: "john.smith@example.com",
-    address: "123 Main Street, Manila",
-    phone: "+63 917 123 4567",
-    department: "Main Library",
-    role: "Librarian",
-    availability: "On Duty",
-    status: "Active",
-    employeeSince: "2021-03-15",
-  },
-  {
-    id: "S-002",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    address: "Unit 5, Quezon City",
-    phone: "+63 917 555 9012",
-    department: "Circulation",
-    role: "Assistant Librarian",
-    availability: "Available",
-    status: "Active",
-    employeeSince: "2022-11-20",
-  },
-];
-
 function pill(value: string) {
   if (value === "On Duty") return "adm-pill is-blue";
   if (value === "Leave") return "adm-pill is-amber";
@@ -50,14 +24,62 @@ function pill(value: string) {
   return "adm-pill is-green-soft";
 }
 
+function normalizeAvailability(v: any): "On Duty" | "Available" | "Leave" {
+  const s = (v ?? "").toString().trim();
+  if (s === "On Duty") return "On Duty";
+  if (s === "Leave") return "Leave";
+  return "Available";
+}
+
+function normalizeStatus(v: any): "Active" | "Inactive" {
+  const s = (v ?? "").toString().trim();
+  return s === "Inactive" ? "Inactive" : "Active";
+}
+
+function toStaff(p: any): Staff {
+  return {
+    id: (p.staff_code ?? p.id).toString(),
+    name: (p.full_name ?? "").toString(),
+    email: (p.email ?? "").toString(),
+    address: (p.address ?? "—").toString(),
+    phone: (p.phone ?? "—").toString(),
+    department: (p.department ?? "—").toString(),
+    role: (p.job_title ?? "—").toString(),
+    availability: normalizeAvailability(p.availability),
+    status: normalizeStatus(p.employment_status),
+    employeeSince: (p.employee_since ?? "—").toString(),
+  };
+}
+
 export default function AdminStaffProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const staff = useMemo(
-    () => MOCK.find((s) => s.id === id) || null,
-    [id]
-  );
+  const [staff, setStaff] = useState<Staff | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        if (!id) {
+          setStaff(null);
+          return;
+        }
+        const profile: StaffProfile = await getStaffById(id);
+        if (!alive) return;
+        setStaff(toStaff(profile as any));
+      } catch (e) {
+        if (!alive) return;
+        console.error(e);
+        setStaff(null);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const trainings = [
     { title: "Library Cataloging Basics", date: "2024-01-15" },
@@ -80,11 +102,7 @@ export default function AdminStaffProfile() {
   if (!staff) {
     return (
       <div className="adm-page">
-        <button
-          className="adm-link"
-          onClick={() => navigate("/admin/AdminStaffList")}
-          type="button"
-        >
+        <button className="adm-link" onClick={() => navigate("/admin/AdminStaffList")} type="button">
           ← Back to Staff List
         </button>
 
@@ -95,6 +113,18 @@ export default function AdminStaffProfile() {
       </div>
     );
   }
+
+  const initials = useMemo(() => {
+    const name = (staff.name || "").trim();
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .map((x) => x[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }, [staff.name]);
 
   return (
     <div className="adm-page">
@@ -117,9 +147,7 @@ export default function AdminStaffProfile() {
             className="adm-btn adm-btn--danger"
             type="button"
             onClick={() => {
-              const confirmDelete = window.confirm(
-                "Are you sure you want to delete this staff?"
-              );
+              const confirmDelete = window.confirm("Are you sure you want to delete this staff?");
               if (confirmDelete) {
                 console.log("Deleting:", staff.id);
                 navigate("/admin/AdminStaffList");
@@ -132,24 +160,13 @@ export default function AdminStaffProfile() {
       </div>
 
       {/* BACK BUTTON */}
-      <button
-        className="adm-link"
-        onClick={() => navigate("/admin/AdminStaffList")}
-        type="button"
-      >
+      <button className="adm-link" onClick={() => navigate("/admin/AdminStaffList")} type="button">
         ← Back to Staff List
       </button>
 
       {/* PROFILE CARD */}
       <div className="adm-card adm-profile">
-        <div className="adm-avatar">
-          {staff.name
-            .split(" ")
-            .map((x) => x[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase()}
-        </div>
+        <div className="adm-avatar">{initials}</div>
 
         <div className="adm-profile__main">
           <div className="adm-profile__row">
@@ -158,9 +175,7 @@ export default function AdminStaffProfile() {
               <div className="adm-muted">Staff ID: {staff.id}</div>
             </div>
 
-            <span className={pill(staff.availability)}>
-              {staff.availability}
-            </span>
+            <span className={pill(staff.availability)}>{staff.availability}</span>
           </div>
 
           <div className="adm-profile__meta">
@@ -190,9 +205,7 @@ export default function AdminStaffProfile() {
           <div>
             <div className="adm-label">Status</div>
             <div className="adm-value">
-              <span className={pill(staff.status)}>
-                {staff.status}
-              </span>
+              <span className={pill(staff.status)}>{staff.status}</span>
             </div>
           </div>
         </div>
@@ -223,9 +236,7 @@ export default function AdminStaffProfile() {
                   <div>{v.title}</div>
                   <div className="adm-muted">{v.date}</div>
                 </div>
-                <span className="adm-pill is-amber">
-                  {v.level}
-                </span>
+                <span className="adm-pill is-amber">{v.level}</span>
               </div>
             ))}
           </div>

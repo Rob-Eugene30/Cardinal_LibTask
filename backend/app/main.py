@@ -10,17 +10,28 @@ from app.routes.health import router as health_router
 from app.routes.tasks import router as tasks_router
 from app.routes.status import router as status_router
 from app.routes.tags import router as tags_router
+from app.routes.reports import router as reports_router
 from app.routes import me
 from app.routes.auth import router as auth_router
 from app.routes.debug import router as debug_router
 from app.routes.staff import router as staff_router
 
 
-
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
 
     origins = settings.CORS_ORIGINS
+
+    # -----------------------------
+    # CORS
+    # -----------------------------
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins or ["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"]
+    )
 
     # -----------------------------
     # API routes (all under /api)
@@ -30,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
     app.include_router(status_router, prefix="/api/status", tags=["status"])
     app.include_router(tags_router, prefix="/api/tags", tags=["tags"])
+    app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
     app.include_router(me.router, prefix="/api", tags=["auth"])
     app.include_router(staff_router, prefix="/api", tags=["staff"])
 

@@ -67,6 +67,7 @@ export default function AdminCreateTasks() {
         description: description || null,
         assigned_to: assignedTo,
         due_date: normalizeDueDate(dueDateTime),
+        priority,
       });
 
       setOk("Task created successfully.");

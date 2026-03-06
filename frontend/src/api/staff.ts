@@ -1,31 +1,41 @@
+import { apiGet, apiPost } from "./http";
+
 export type StaffProfile = {
   id: string;
+  staff_code?: string | null;
   full_name: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  department?: string | null;
+  job_title?: string | null;
+  availability?: "On Duty" | "Available" | "Leave" | string;
+  employment_status?: "Active" | "Inactive" | string;
+  employee_since?: string | null;
   role: "staff" | "admin";
 };
 
-const STAFF_KEY = "clt_local_users_v1";
-
-const defaultUsers: StaffProfile[] = [
-  { id: "admin-001", full_name: "Admin User", role: "admin" },
-  { id: "staff-001", full_name: "Staff User", role: "staff" },
-  { id: "staff-002", full_name: "Staff Two", role: "staff" },
-];
-
-function initUsers() {
-  const existing = localStorage.getItem(STAFF_KEY);
-  if (!existing) {
-    localStorage.setItem(STAFF_KEY, JSON.stringify(defaultUsers));
-  }
+export async function getStaff(): Promise<StaffProfile[]> {
+  return apiGet<StaffProfile[]>("/staff");
 }
 
-export async function getStaff(): Promise<StaffProfile[]> {
-  initUsers();
-  const raw = localStorage.getItem(STAFF_KEY);
-  try {
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? (parsed as StaffProfile[]) : [];
-  } catch {
-    return [];
-  }
+export async function getStaffById(staffId: string): Promise<StaffProfile> {
+  return apiGet<StaffProfile>(`/staff/${encodeURIComponent(staffId)}`);
+}
+
+export type InviteStaffInput = {
+  staff_code: string;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  address?: string | null;
+  department?: string | null;
+  job_title?: string | null;
+  availability?: "On Duty" | "Available" | "Leave";
+  employment_status?: "Active" | "Inactive";
+  employee_since?: string | null; // YYYY-MM-DD
+};
+
+export async function inviteStaff(payload: InviteStaffInput): Promise<StaffProfile> {
+  return apiPost<StaffProfile>("/staff/invite", payload);
 }

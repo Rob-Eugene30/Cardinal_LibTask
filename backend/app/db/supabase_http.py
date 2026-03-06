@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
+
 import httpx
 
 from app.core.config import settings
@@ -12,17 +14,19 @@ def _base_url() -> str:
     return settings.SUPABASE_URL.rstrip("/")
 
 
-def _headers(user_jwt: Optional[str] = None) -> dict[str, str]:
-    if not settings.SUPABASE_ANON_KEY:
-        bad_request("SUPABASE_ANON_KEY is not configured.")
+def _headers(*, apikey: str, bearer: str | None = None, extra: dict[str, str] | None = None) -> dict[str, str]:
+    if not apikey:
+        bad_request("Supabase API key is not configured.")
 
-    headers = {
-        "apikey": settings.SUPABASE_ANON_KEY,  # app identity :contentReference[oaicite:5]{index=5}
+    headers: dict[str, str] = {
+        "apikey": apikey,
         "Content-Type": "application/json",
+        "Accept": "application/json",
     }
-    # IMPORTANT: Authorization should be USER JWT, not anon/service keys :contentReference[oaicite:6]{index=6}
-    if user_jwt:
-        headers["Authorization"] = f"Bearer {user_jwt}"
+    if bearer:
+        headers["Authorization"] = f"Bearer {bearer}"
+    if extra:
+        headers.update(extra)
     return headers
 
 
@@ -34,38 +38,139 @@ def _handle_error(resp: httpx.Response):
     http_error(resp.status_code, "SUPABASE_API_ERROR", str(payload))
 
 
-def sb_get(path: str, user_jwt: str | None = None, params: dict | None = None) -> Any:
+# ---------------------------------------------------------------------------
+# User-scoped PostgREST helpers (uses ANON key + the user's access token)
+# ---------------------------------------------------------------------------
+
+def sb_get(path: str, *, user_jwt: str | None = None, params: dict | None = None) -> Any:
     url = _base_url() + path
     with httpx.Client(timeout=20) as client:
-        r = client.get(url, headers=_headers(user_jwt), params=params)
+        r = client.get(url, headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt), params=params)
         if r.status_code >= 400:
             _handle_error(r)
         return r.json()
 
 
-def sb_post(path: str, user_jwt: str | None = None, json: Any = None, params: dict | None = None) -> Any:
+def sb_post(
+    path: str,
+    *,
+    user_jwt: str | None = None,
+    json: Any = None,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
     url = _base_url() + path
     with httpx.Client(timeout=20) as client:
-        r = client.post(url, headers=_headers(user_jwt), json=json, params=params)
+        r = client.post(
+            url,
+            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            json=json,
+            params=params,
+        )
         if r.status_code >= 400:
             _handle_error(r)
-        # PostgREST may return [] if you don't request representation
         return r.json() if r.text else None
 
 
-def sb_patch(path: str, user_jwt: str | None = None, json: Any = None, params: dict | None = None) -> Any:
+def sb_patch(
+    path: str,
+    *,
+    user_jwt: str | None = None,
+    json: Any = None,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
     url = _base_url() + path
     with httpx.Client(timeout=20) as client:
-        r = client.patch(url, headers=_headers(user_jwt), json=json, params=params)
+        r = client.patch(
+            url,
+            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            json=json,
+            params=params,
+        )
         if r.status_code >= 400:
             _handle_error(r)
         return r.json() if r.text else None
 
 
-def sb_delete(path: str, user_jwt: str | None = None, params: dict | None = None) -> Any:
+def sb_delete(
+    path: str,
+    *,
+    user_jwt: str | None = None,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
     url = _base_url() + path
     with httpx.Client(timeout=20) as client:
-        r = client.delete(url, headers=_headers(user_jwt), params=params)
+        r = client.delete(
+            url,
+            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            params=params,
+        )
+        if r.status_code >= 400:
+            _handle_error(r)
+        return r.json() if r.text else None
+
+
+# ---------------------------------------------------------------------------
+# Admin helpers (service role key). Use for:
+# - inviting/creating auth users
+# - bypassing RLS safely on the server
+# ---------------------------------------------------------------------------
+
+def _require_service_key() -> str:
+    if not settings.SUPABASE_SERVICE_ROLE_KEY:
+        bad_request("SUPABASE_SERVICE_ROLE_KEY is not configured.")
+    return settings.SUPABASE_SERVICE_ROLE_KEY
+
+
+def sb_admin_get(path: str, *, params: dict | None = None) -> Any:
+    url = _base_url() + path
+    key = _require_service_key()
+    with httpx.Client(timeout=20) as client:
+        r = client.get(url, headers=_headers(apikey=key, bearer=key), params=params)
+        if r.status_code >= 400:
+            _handle_error(r)
+        return r.json()
+
+
+def sb_admin_post(
+    path: str,
+    *,
+    json: Any = None,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
+    url = _base_url() + path
+    key = _require_service_key()
+    with httpx.Client(timeout=20) as client:
+        r = client.post(
+            url,
+            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            json=json,
+            params=params,
+        )
+        if r.status_code >= 400:
+            _handle_error(r)
+        return r.json() if r.text else None
+
+
+def sb_admin_patch(
+    path: str,
+    *,
+    json: Any = None,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
+    url = _base_url() + path
+    key = _require_service_key()
+    with httpx.Client(timeout=20) as client:
+        r = client.patch(
+            url,
+            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            json=json,
+            params=params,
+        )
         if r.status_code >= 400:
             _handle_error(r)
         return r.json() if r.text else None

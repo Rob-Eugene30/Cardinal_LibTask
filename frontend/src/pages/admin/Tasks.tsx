@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { listTasks } from "../../api/tasks";
 import type { Task } from "../../api/tasks";
 
-import "../../components/layout/AdminLayout.css"; 
+import "../../components/layout/AdminLayout.css";
 
-type TaskStatus = "Not Yet Started" | "In Progress" | "Finished" | "On Hold";
+type TaskStatus = "Not Yet Started" | "In Progress" | "Finished" | "On Hold" | "Abolished";
 
 function normalizeStatus(s: any): TaskStatus {
   const v = (s ?? "").toString().trim();
   if (v === "In Progress") return "In Progress";
   if (v === "Finished") return "Finished";
   if (v === "On Hold") return "On Hold";
+  if (v === "Abolished") return "Abolished";
   return "Not Yet Started";
 }
 
@@ -23,6 +24,8 @@ function statusClass(status: TaskStatus) {
     case "Finished":
       return "status-finished";
     case "On Hold":
+      return "status-hold";
+    case "Abolished":
       return "status-hold";
   }
 }
@@ -83,22 +86,17 @@ export default function AdminTasks() {
       <div className="adm-tasks-header">
         <div>
           <h1 className="adm-tasks-title">All Tasks</h1>
-          <p className="adm-tasks-sub">
-            View and track all tasks assigned in the system.
-          </p>
+          <p className="adm-tasks-sub">View and track all tasks assigned in the system.</p>
         </div>
 
         <div className="adm-tasks-actions">
-          <select
-            className="adm-select"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
-          >
+          <select className="adm-select" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
             <option value="All">All Status</option>
             <option value="Not Yet Started">Not Yet Started</option>
             <option value="In Progress">In Progress</option>
             <option value="Finished">Finished</option>
             <option value="On Hold">On Hold</option>
+            <option value="Abolished">Abolished</option>
           </select>
 
           <button className="adm-btn-primary" onClick={load} disabled={loading}>
@@ -124,9 +122,7 @@ export default function AdminTasks() {
             <div key={t.id} className="adm-task-card">
               <div className="adm-task-top">
                 <div className="adm-task-code">{t._code}</div>
-                <span className={`adm-status ${statusClass(t._status)}`}>
-                  {t._status}
-                </span>
+                <span className={`adm-status ${statusClass(t._status)}`}>{t._status}</span>
               </div>
 
               <div className="adm-task-name">{t.title}</div>

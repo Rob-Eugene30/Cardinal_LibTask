@@ -1,18 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { getStaff, type StaffProfile } from "../../api/staff";
-
-type Task = {
-  id: string;
-  title: string;
-  assignedTo: string;
-  status: string;
-};
-
-const STORAGE_KEY = "clibtask_admin_tasks_v1";
+import { listTasks, type Task as ApiTask } from "../../api/tasks";
 
 export default function AdminDashboard() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +18,13 @@ export default function AdminDashboard() {
 
         const rows = await getStaff();
         if (!alive) return;
-
         setStaff(rows);
 
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setTasks(JSON.parse(stored));
-        }
+        const res: any = await listTasks();
+        if (!alive) return;
+
+        const items: ApiTask[] = Array.isArray(res) ? res : res?.items ?? [];
+        setTasks(items);
       } catch (e) {
         if (!alive) return;
         setError((e as Error)?.message || "Failed to load data.");
@@ -49,29 +41,26 @@ export default function AdminDashboard() {
 
   // ===== METRICS =====
   const libraryStaff = staff.filter((s) => s.role !== "admin");
-
   const totalStaff = libraryStaff.length;
 
-  const activeTasks = tasks.filter(
-    (t) => t.status === "In Progress"
-  ).length;
+  const activeTasks = tasks.filter((t) => (t.status ?? "").trim() === "In Progress").length;
 
-  const completedTasks = tasks.filter(
-    (t) => t.status === "Completed"
-  ).length;
+  const completedTasks = tasks.filter((t) => (t.status ?? "").trim() === "Finished").length;
 
   const availableStaff = useMemo(() => {
     const busyStaffIds = new Set(
       tasks
-        .filter((t) => t.status === "In Progress")
-        .map((t) => t.assignedTo)
+        .filter((t) => (t.status ?? "").trim() === "In Progress")
+        .map((t) => t.assigned_to)
+        .filter(Boolean)
     );
 
     return libraryStaff.filter((s) => !busyStaffIds.has(s.id)).length;
   }, [tasks, libraryStaff]);
 
-  // ===== RECENT ACTIVITY (mock from tasks) =====
-  const recentActivity = tasks.slice(-5).reverse();
+  // ===== RECENT ACTIVITY =====
+  // (Show up to 5 latest tasks; assumes backend returns newest-first, but still safe.)
+  const recentActivity = useMemo(() => tasks.slice(0, 5), [tasks]);
 
   return (
     <div className="adm-dashboard">
@@ -116,8 +105,7 @@ export default function AdminDashboard() {
           <h3>Library Staff</h3>
           {libraryStaff.map((s) => (
             <div key={s.id} className="adm-staff-row">
-              {(s.full_name && s.full_name.trim()) ||
-                `User ${s.id.slice(0, 6)}…`}
+              {(s.full_name && s.full_name.trim()) || `User ${s.id.slice(0, 6)}…`}
             </div>
           ))}
         </div>
@@ -127,19 +115,13 @@ export default function AdminDashboard() {
           <h3>Recent Activity</h3>
 
           {recentActivity.length === 0 && (
-            <div style={{ opacity: 0.6 }}>
-              No recent activity.
-            </div>
+            <div style={{ opacity: 0.6 }}>No recent activity.</div>
           )}
 
-          {recentActivity.map((task) => (
+          {recentActivity.map((task: any) => (
             <div key={task.id} className="adm-activity-row">
-              <div className="adm-activity-title">
-                {task.title}
-              </div>
-              <div className="adm-activity-sub">
-                Status: {task.status}
-              </div>
+              <div className="adm-activity-title">{task.title}</div>
+              <div className="adm-activity-sub">Status: {task.status}</div>
             </div>
           ))}
         </div>

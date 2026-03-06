@@ -38,6 +38,9 @@ class Settings:
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
+    # Server-only key for admin operations (invite/create users, bypass RLS, etc.)
+    # IMPORTANT: never expose this to the browser.
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
     # Token validation
     JWT_AUDIENCE: str = os.getenv("JWT_AUDIENCE", "authenticated")
