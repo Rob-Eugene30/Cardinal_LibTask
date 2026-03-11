@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyRole, signIn } from "../lib/auth";
 import "./Login.css";
+import libraryBg from "../assets/library.png";
+import mapuaLogo from "../assets/Mapualogo.png";
 
 export default function Login() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -45,17 +46,24 @@ export default function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-card">
+      <div
+        className="login-bg"
+        style={{ backgroundImage: `url(${libraryBg})` }}
+      />
 
-        {/* Branding */}
+      <div className="login-card">
         <div className="login-brand">
-          <div className="school">Mapúa University</div>
+          <img
+            src={mapuaLogo}
+            alt="Mapúa University Logo"
+            className="login-logo"
+          />
+
           <h1 className="title">Cardinal LibTask</h1>
           <div className="login-accent" />
         </div>
 
         <form onSubmit={onSubmit}>
-
           <label className="login-label" htmlFor="email">
             Email
           </label>
@@ -87,11 +95,7 @@ export default function Login() {
             />
           </div>
 
-          {errorMsg && (
-            <div className="login-error">
-              {errorMsg}
-            </div>
-          )}
+          {errorMsg && <div className="login-error">{errorMsg}</div>}
 
           <button
             className="login-primary"
@@ -104,7 +108,6 @@ export default function Login() {
           <div className="login-footer">
             Need access? Contact the librarian/admin to assign your role.
           </div>
-
         </form>
       </div>
     </div>
