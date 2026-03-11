@@ -67,7 +67,6 @@ function StatCard({
       <div className="rep-stat__top">
         <div className="rep-stat__label">{title}</div>
         <div className="rep-stat__icon" aria-hidden="true">
-          {/* simple icon blocks so no extra libs */}
           <span />
         </div>
       </div>
@@ -136,6 +135,10 @@ export default function Reports() {
     refresh();
   }, []);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const selectedStaffRow = useMemo(() => {
     if (!staffSummary || !filters.staff_id) return null;
     return staffSummary.items.find((x) => x.staff_id === filters.staff_id) || null;
@@ -169,7 +172,16 @@ export default function Reports() {
           <div className="rep-sub">{filterSubtitle}</div>
         </div>
 
-        <div className="rep-filters">
+        {/* Filters + buttons container */}
+        <div
+          className="rep-filters"
+          style={{
+            display: "flex",
+            gap: "20px",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+          }}
+        >
           <div className="rep-field">
             <label>Date</label>
             <input
@@ -200,9 +212,20 @@ export default function Reports() {
             </select>
           </div>
 
-          <button className="adm-btn-primary rep-apply" onClick={refresh} disabled={loading}>
-            {loading ? "Loading..." : "Apply"}
-          </button>
+          {/* Buttons aligned to bottom */}
+          <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+            <button
+              className="adm-btn-primary rep-apply"
+              onClick={refresh}
+              disabled={loading}
+              style={{ alignSelf: "flex-end" }}
+            >
+              {loading ? "Loading..." : "Apply"}
+            </button>
+            <button className="adm-btn-primary" onClick={handlePrint} style={{ alignSelf: "flex-end" }}>
+              Print PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -215,7 +238,7 @@ export default function Reports() {
         <StatCard title="Closed Tasks" value={tasksSummary?.closed_tasks ?? 0} tone="good" />
       </div>
 
-      {/* Row: schedule + analytics */}
+      {/* Schedule + Analytics */}
       <div className="rep-grid-2">
         <div className="rep-card">
           <div className="rep-card__head">
@@ -227,7 +250,6 @@ export default function Reports() {
               </div>
             </div>
           </div>
-
           <div className="rep-list">
             {tasksSummary?.by_status?.length ? (
               tasksSummary.by_status.map((s) => (
@@ -252,7 +274,6 @@ export default function Reports() {
               <div className="rep-card__sub">Charts will appear here once enabled.</div>
             </div>
           </div>
-
           <div className="rep-soon">
             <div className="rep-soon__box">
               <div className="rep-soon__title">Task Trend</div>
@@ -266,7 +287,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Row: pie + table */}
+      {/* Pie + Table */}
       <div className="rep-grid-2 rep-grid-2--wide">
         <div className="rep-card">
           <div className="rep-card__head rep-card__head--split">
@@ -278,10 +299,8 @@ export default function Reports() {
             </div>
             <div className="rep-pill">Total: {pie.total}</div>
           </div>
-
           <div className="rep-pie-wrap">
             <div className="rep-pie" style={{ background: pie.gradient }} />
-
             <div className="rep-legend">
               {pieSegments.map((s, i) => (
                 <div key={i} className="rep-legend__row">
@@ -320,7 +339,6 @@ export default function Reports() {
                 {(staffSummary?.items || []).map((row) => {
                   const name = staffNameById.get(row.staff_id) || row.staff_id;
                   const active = filters.staff_id === row.staff_id;
-
                   return (
                     <tr
                       key={row.staff_id}
