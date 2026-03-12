@@ -67,8 +67,8 @@ body {
 }
 
 .login-logo {
-  width: 82px;
-  height: 42px;
+  width: 302px;
+  height: 102px;
   object-fit: contain;
   margin-bottom: 8px;
   transform: scale(1.1);
@@ -190,12 +190,6 @@ body {
     width: 100%;
     padding: 24px 20px 20px;
     border-radius: 20px;
-  }
-
-  .login-logo {
-    width: 74px;
-    height: 38px;
-    transform: scale(1.05);
   }
 
   .title {
