@@ -174,3 +174,22 @@ def sb_admin_patch(
         if r.status_code >= 400:
             _handle_error(r)
         return r.json() if r.text else None
+
+
+def sb_admin_delete(
+    path: str,
+    *,
+    params: dict | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> Any:
+    url = _base_url() + path
+    key = _require_service_key()
+    with httpx.Client(timeout=20) as client:
+        r = client.delete(
+            url,
+            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            params=params,
+        )
+        if r.status_code >= 400:
+            _handle_error(r)
+        return r.json() if r.text else None

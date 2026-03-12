@@ -1,19 +1,7 @@
-import { apiGet, apiPost } from "./http";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./http";
+import type { StaffProfileRecord } from "../types/user";
 
-export type StaffProfile = {
-  id: string;
-  staff_code?: string | null;
-  full_name: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
-  department?: string | null;
-  job_title?: string | null;
-  availability?: "On Duty" | "Available" | "Leave" | string;
-  employment_status?: "Active" | "Inactive" | string;
-  employee_since?: string | null;
-  role: "staff" | "admin";
-};
+export type StaffProfile = StaffProfileRecord;
 
 export async function getStaff(): Promise<StaffProfile[]> {
   return apiGet<StaffProfile[]>("/staff");
@@ -33,9 +21,19 @@ export type InviteStaffInput = {
   job_title?: string | null;
   availability?: "On Duty" | "Available" | "Leave";
   employment_status?: "Active" | "Inactive";
-  employee_since?: string | null; // YYYY-MM-DD
+  employee_since?: string | null;
 };
+
+export type UpdateStaffInput = Partial<Omit<InviteStaffInput, "email">>;
 
 export async function inviteStaff(payload: InviteStaffInput): Promise<StaffProfile> {
   return apiPost<StaffProfile>("/staff/invite", payload);
+}
+
+export async function updateStaff(staffId: string, payload: UpdateStaffInput): Promise<StaffProfile> {
+  return apiPatch<StaffProfile>(`/staff/${encodeURIComponent(staffId)}`, payload);
+}
+
+export async function deleteStaff(staffId: string) {
+  return apiDelete<{ deleted: boolean; staff_id: string }>(`/staff/${encodeURIComponent(staffId)}`);
 }

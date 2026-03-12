@@ -1,12 +1,53 @@
-from app.db.supabase_http import sb_get, sb_post, sb_patch, sb_delete
-from app.core.errors import forbidden, not_found, bad_request
+from datetime import date, datetime
+
+from app.core.errors import bad_request, forbidden, not_found
+from app.db.supabase_http import sb_delete, sb_get, sb_patch, sb_post
 
 REST = "/rest/v1"
+
+_STATUS_ALIAS_MAP = {
+    "pending": "pending",
+    "not yet started": "pending",
+    "in_progress": "in_progress",
+    "in progress": "in_progress",
+    "done": "done",
+    "finished": "done",
+    "on_hold": "on_hold",
+    "on hold": "on_hold",
+    "cancelled": "cancelled",
+    "abolished": "cancelled",
+}
+
+_ALLOWED_STATUSES = {"pending", "in_progress", "done", "on_hold", "cancelled"}
+
+
+def _normalize_due_date(value) -> str | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+
+    text = str(value).strip()
+    if not text:
+        return None
+    if "T" in text:
+        return text.split("T", 1)[0]
+    return text
+
+
+def normalize_status(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = _STATUS_ALIAS_MAP.get(str(value).strip().lower())
+    if not normalized:
+        bad_request(f"Invalid status. Allowed: {sorted(_ALLOWED_STATUSES)}")
+    return normalized
 
 
 def list_tasks(actor: dict) -> list[dict]:
     jwt = actor["access_token"]
-    # RLS should restrict staff to assigned_to = auth.uid()
     return sb_get(
         f"{REST}/tasks",
         user_jwt=jwt,
@@ -31,15 +72,14 @@ def create_task(payload: dict, actor: dict) -> dict:
         forbidden("Admin access required.")
 
     jwt = actor["access_token"]
-
     rows = sb_post(
         f"{REST}/tasks",
         user_jwt=jwt,
         json={
-            "title": payload["title"],
+            "title": payload["title"].strip(),
             "description": payload.get("description"),
-            "due_date": payload.get("due_date"),
-            "created_by": actor["sub"],
+            "due_date": _normalize_due_date(payload.get("due_date")),
+            "created_by": actor["user_id"],
             "assigned_to": payload["assigned_to"],
             "status": "pending",
         },
@@ -53,13 +93,28 @@ def create_task(payload: dict, actor: dict) -> dict:
 def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
     if actor.get("app_role") != "admin":
         forbidden("Admin access required.")
-    jwt = actor["access_token"]
 
-    # Patch and return updated row
+    jwt = actor["access_token"]
+    out: dict = {}
+
+    if "title" in patch and patch["title"] is not None:
+        out["title"] = str(patch["title"]).strip()
+    if "description" in patch:
+        out["description"] = patch["description"]
+    if "due_date" in patch:
+        out["due_date"] = _normalize_due_date(patch["due_date"])
+    if "assigned_to" in patch and patch["assigned_to"] is not None:
+        out["assigned_to"] = patch["assigned_to"]
+    if "status" in patch:
+        out["status"] = normalize_status(patch["status"])
+
+    if not out:
+        bad_request("No valid fields provided.")
+
     rows = sb_patch(
         f"{REST}/tasks",
         user_jwt=jwt,
-        json=patch,
+        json=out,
         params={"id": f"eq.{task_id}", "select": "*"},
     )
     if not rows:
@@ -68,27 +123,21 @@ def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
 
 
 def set_task_tags(task_id: str, tag_ids: list[str], actor: dict) -> dict:
-    """
-    Replace all tags for a task.
-    Uses task_tags join table.
-    """
     if actor.get("app_role") != "admin":
         forbidden("Only admin can modify task tags.")
 
     jwt = actor["access_token"]
-
-    # Ensure task exists (admin should see it)
     _ = get_task(task_id, actor)
 
-    # Delete existing
     sb_delete(
         f"{REST}/task_tags",
         user_jwt=jwt,
         params={"task_id": f"eq.{task_id}"},
     )
 
-    if tag_ids:
-        payload = [{"task_id": task_id, "tag_id": tid} for tid in tag_ids]
+    clean_tag_ids = [tag_id for tag_id in tag_ids if str(tag_id).strip()]
+    if clean_tag_ids:
+        payload = [{"task_id": task_id, "tag_id": tid} for tid in clean_tag_ids]
         sb_post(
             f"{REST}/task_tags",
             user_jwt=jwt,
@@ -96,4 +145,4 @@ def set_task_tags(task_id: str, tag_ids: list[str], actor: dict) -> dict:
             params={"select": "task_id,tag_id"},
         )
 
-    return {"ok": True, "task_id": task_id, "tag_ids": tag_ids}
+    return {"ok": True, "task_id": task_id, "tag_ids": clean_tag_ids}

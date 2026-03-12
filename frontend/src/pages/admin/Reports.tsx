@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+
 import type { ApiError } from "../../api/http";
+import { getTagSummary, getStaffSummary, getTasksSummary } from "../../api/reports";
 import { getStaff, type StaffProfile } from "../../api/staff";
-import { getStaffSummary, getTasksSummary } from "../../api/reports";
-import type { StaffSummaryResponse, TasksSummaryResponse } from "../../types/report";
+import type { StaffSummaryResponse, TagSummaryResponse, TasksSummaryResponse } from "../../types/report";
 
 type Filters = {
   start_date: string;
@@ -20,7 +21,7 @@ function clamp(n: number) {
 const PIE_PALETTE = ["#60a5fa", "#34d399"];
 
 function makePieGradient(segments: { label: string; value: number }[]) {
-  const total = segments.reduce((a, s) => a + clamp(s.value), 0);
+  const total = segments.reduce((acc, segment) => acc + clamp(segment.value), 0);
 
   if (total <= 0) {
     return {
@@ -35,11 +36,11 @@ function makePieGradient(segments: { label: string; value: number }[]) {
   const stops: string[] = [];
   const percents: number[] = [];
 
-  segments.forEach((s, i) => {
-    const p = (clamp(s.value) / total) * 100;
-    percents.push(p);
-    const end = start + p;
-    stops.push(`${PIE_PALETTE[i]} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+  segments.forEach((segment, index) => {
+    const percent = (clamp(segment.value) / total) * 100;
+    percents.push(percent);
+    const end = start + percent;
+    stops.push(`${PIE_PALETTE[index]} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
     start = end;
   });
 
@@ -53,15 +54,7 @@ function makePieGradient(segments: { label: string; value: number }[]) {
   };
 }
 
-function StatCard({
-  title,
-  value,
-  tone,
-}: {
-  title: string;
-  value: number;
-  tone: StatTone;
-}) {
+function StatCard({ title, value, tone }: { title: string; value: number; tone: StatTone }) {
   return (
     <div className={`rep-stat rep-stat--${tone}`}>
       <div className="rep-stat__top">
@@ -85,7 +78,7 @@ export default function Reports() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [tasksSummary, setTasksSummary] = useState<TasksSummaryResponse | null>(null);
   const [staffSummary, setStaffSummary] = useState<StaffSummaryResponse | null>(null);
-
+  const [tagSummary, setTagSummary] = useState<TagSummaryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
@@ -93,15 +86,17 @@ export default function Reports() {
     (async () => {
       try {
         const rows = await getStaff();
-        setStaff(rows.filter((s) => s.role === "staff"));
-      } catch {}
+        setStaff(rows.filter((member) => member.role === "staff"));
+      } catch {
+        setStaff([]);
+      }
     })();
   }, []);
 
   const staffNameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of staff) m.set(s.id, (s.full_name && s.full_name.trim()) || s.id);
-    return m;
+    const map = new Map<string, string>();
+    for (const member of staff) map.set(member.id, (member.full_name && member.full_name.trim()) || member.id);
+    return map;
   }, [staff]);
 
   const refresh = async () => {
@@ -109,30 +104,32 @@ export default function Reports() {
       setLoading(true);
       setError(null);
 
-      const q: { start_date?: string; end_date?: string; staff_id?: string } = {};
+      const query: { start_date?: string; end_date?: string; staff_id?: string } = {};
+      if (filters.start_date) query.start_date = filters.start_date;
+      if (filters.end_date) query.end_date = filters.end_date;
+      if (filters.staff_id) query.staff_id = filters.staff_id;
 
-      if (filters.start_date) q.start_date = filters.start_date;
-      if (filters.end_date) q.end_date = filters.end_date;
-      if (filters.staff_id) q.staff_id = filters.staff_id;
-
-      const [ts, ss] = await Promise.all([
-        getTasksSummary(q) as Promise<TasksSummaryResponse>,
-        getStaffSummary(q) as Promise<StaffSummaryResponse>,
+      const [taskRes, staffRes, tagRes] = await Promise.all([
+        getTasksSummary(query) as Promise<TasksSummaryResponse>,
+        getStaffSummary(query) as Promise<StaffSummaryResponse>,
+        getTagSummary(query) as Promise<TagSummaryResponse>,
       ]);
 
-      setTasksSummary(ts);
-      setStaffSummary(ss);
-    } catch (e) {
-      setError(e as ApiError);
+      setTasksSummary(taskRes);
+      setStaffSummary(staffRes);
+      setTagSummary(tagRes);
+    } catch (err) {
+      setError(err as ApiError);
       setTasksSummary(null);
       setStaffSummary(null);
+      setTagSummary(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const handlePrint = () => {
@@ -141,11 +138,11 @@ export default function Reports() {
 
   const selectedStaffRow = useMemo(() => {
     if (!staffSummary || !filters.staff_id) return null;
-    return staffSummary.items.find((x) => x.staff_id === filters.staff_id) || null;
-  }, [staffSummary, filters.staff_id]);
+    return staffSummary.items.find((item) => item.staff_id === filters.staff_id) || null;
+  }, [filters.staff_id, staffSummary]);
 
   const pieSegments = useMemo(() => {
-    if (!selectedStaffRow) return [{ label: "No data", value: 1 }];
+    if (!selectedStaffRow) return [{ label: "Open", value: 0 }, { label: "Closed", value: 0 }];
     return [
       { label: "Open", value: selectedStaffRow.open_tasks },
       { label: "Closed", value: selectedStaffRow.closed_tasks },
@@ -156,15 +153,21 @@ export default function Reports() {
 
   const filterSubtitle = useMemo(() => {
     const parts: string[] = [];
-    if (filters.start_date) parts.push(`Date: ${filters.start_date}`);
+    if (filters.start_date && filters.end_date && filters.start_date !== filters.end_date) {
+      parts.push(`Date: ${filters.start_date} to ${filters.end_date}`);
+    } else if (filters.start_date) {
+      parts.push(`Date: ${filters.start_date}`);
+    }
     if (filters.staff_id) parts.push(`Staff: ${staffNameById.get(filters.staff_id)}`);
     if (!parts.length) return "Choose a date and staff to filter results.";
     return parts.join(" • ");
-  }, [filters.start_date, filters.staff_id, staffNameById]);
+  }, [filters.end_date, filters.start_date, filters.staff_id, staffNameById]);
+
+  const topTag = tagSummary?.items?.[0];
+  const trackedTagsCount = tagSummary?.items?.length ?? 0;
 
   return (
     <div className="rep-page">
-      {/* Header */}
       <div className="rep-head">
         <div>
           <div className="rep-kicker">Reports</div>
@@ -199,14 +202,11 @@ export default function Reports() {
 
           <div className="rep-field">
             <label>Staff</label>
-            <select
-              value={filters.staff_id}
-              onChange={(e) => setFilters((f) => ({ ...f, staff_id: e.target.value }))}
-            >
+            <select value={filters.staff_id} onChange={(event) => setFilters((prev) => ({ ...prev, staff_id: event.target.value }))}>
               <option value="">All Staff</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.full_name || s.id}
+              {staff.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.full_name || member.id}
                 </option>
               ))}
             </select>
@@ -231,7 +231,6 @@ export default function Reports() {
 
       {error && <div className="adm-form-error">{error.message || "Failed to load reports."}</div>}
 
-      {/* Stat row */}
       <div className="rep-stats">
         <StatCard title="Total Tasks" value={tasksSummary?.total_tasks ?? 0} tone="neutral" />
         <StatCard title="Open Tasks" value={tasksSummary?.open_tasks ?? 0} tone="warn" />
@@ -244,18 +243,15 @@ export default function Reports() {
           <div className="rep-card__head">
             <div>
               <div className="rep-card__title">Day Schedule</div>
-              <div className="rep-card__sub">
-                {filters.start_date ? `Date: ${filters.start_date}` : "Select a date"}
-                {filters.staff_id ? ` • Staff: ${staffNameById.get(filters.staff_id)}` : ""}
-              </div>
+              <div className="rep-card__sub">{filters.start_date ? `Date: ${filters.start_date}` : "Select a date"}</div>
             </div>
           </div>
           <div className="rep-list">
             {tasksSummary?.by_status?.length ? (
-              tasksSummary.by_status.map((s) => (
-                <div key={s.label} className="rep-list__row">
-                  <div className="rep-list__label">{s.label}</div>
-                  <div className="rep-list__value">{s.count}</div>
+              tasksSummary.by_status.map((status) => (
+                <div key={status.label} className="rep-list__row">
+                  <div className="rep-list__label">{status.label}</div>
+                  <div className="rep-list__value">{status.count}</div>
                 </div>
               ))
             ) : (
@@ -271,17 +267,17 @@ export default function Reports() {
           <div className="rep-card__head">
             <div>
               <div className="rep-card__title">Analytics Overview</div>
-              <div className="rep-card__sub">Charts will appear here once enabled.</div>
+              <div className="rep-card__sub">Tag-based analytics from current task data.</div>
             </div>
           </div>
           <div className="rep-soon">
             <div className="rep-soon__box">
-              <div className="rep-soon__title">Task Trend</div>
-              <div className="rep-soon__sub">Coming soon</div>
+              <div className="rep-soon__title">Top Tag</div>
+              <div className="rep-soon__sub">{topTag ? `${topTag.tag} • ${topTag.total_tasks} task(s)` : "No tag data yet"}</div>
             </div>
             <div className="rep-soon__box">
-              <div className="rep-soon__title">Task Distribution</div>
-              <div className="rep-soon__sub">Coming soon</div>
+              <div className="rep-soon__title">Tracked Tags</div>
+              <div className="rep-soon__sub">{trackedTagsCount}</div>
             </div>
           </div>
         </div>
@@ -293,23 +289,21 @@ export default function Reports() {
           <div className="rep-card__head rep-card__head--split">
             <div>
               <div className="rep-card__title">Staff Breakdown</div>
-              <div className="rep-card__sub">
-                {filters.staff_id ? `Staff: ${staffNameById.get(filters.staff_id)}` : "All Staff"}
-              </div>
+              <div className="rep-card__sub">{filters.staff_id ? `Staff: ${staffNameById.get(filters.staff_id)}` : "Select a staff member"}</div>
             </div>
             <div className="rep-pill">Total: {pie.total}</div>
           </div>
           <div className="rep-pie-wrap">
             <div className="rep-pie" style={{ background: pie.gradient }} />
             <div className="rep-legend">
-              {pieSegments.map((s, i) => (
-                <div key={i} className="rep-legend__row">
+              {pieSegments.map((segment, index) => (
+                <div key={segment.label} className="rep-legend__row">
                   <div className="rep-legend__left">
-                    <span className="rep-dot" style={{ background: pie.colors[i] }} />
-                    {s.label}
+                    <span className="rep-dot" style={{ background: pie.colors[index] }} />
+                    {segment.label}
                   </div>
                   <div className="rep-legend__right">
-                    {clamp(s.value)} ({(pie.percents[i] ?? 0).toFixed(1)}%)
+                    {clamp(segment.value)} ({(pie.percents[index] ?? 0).toFixed(1)}%)
                   </div>
                 </div>
               ))}
@@ -340,11 +334,7 @@ export default function Reports() {
                   const name = staffNameById.get(row.staff_id) || row.staff_id;
                   const active = filters.staff_id === row.staff_id;
                   return (
-                    <tr
-                      key={row.staff_id}
-                      className={active ? "is-active" : ""}
-                      onClick={() => setFilters((f) => ({ ...f, staff_id: row.staff_id }))}
-                    >
+                    <tr key={row.staff_id} className={active ? "is-active" : ""} onClick={() => setFilters((prev) => ({ ...prev, staff_id: row.staff_id }))}>
                       <td>{name}</td>
                       <td>{row.total_tasks}</td>
                       <td>{row.open_tasks}</td>
@@ -352,6 +342,11 @@ export default function Reports() {
                     </tr>
                   );
                 })}
+                {!(staffSummary?.items || []).length && (
+                  <tr>
+                    <td colSpan={4}>No staff report data available.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
