@@ -2,6 +2,24 @@
 /*       STAFF LAYOUT            */
 /* ============================= */
 
+:root {
+  --stf-bg: #f8fafc;
+
+  --stf-surface: #661210;
+  --stf-surface-2: #661210;
+
+  --stf-text: #111827;
+  --stf-text-dim: #6b7280;
+  --stf-border: #e5e7eb;
+
+  --stf-accent: #661210;
+  --stf-accent-dark: #b0211f;
+
+  --stf-card: #ffffff;
+  --stf-card-border: #e5e7eb;
+  --stf-active: #f4b400;
+}
+
 html,
 body {
   height: 100%;
@@ -9,8 +27,8 @@ body {
 
 body {
   margin: 0;
-  background: var(--adm-bg);
-  color: var(--adm-text);
+  background: var(--stf-bg);
+  color: var(--stf-text);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -26,13 +44,13 @@ body {
 
 .stf-sidebar {
   width: 260px;
-  background: #f4b400; /* Yellow */
-  color: #111; /* Dark text for contrast */
-  border-right: 1px solid rgba(0,0,0,0.08);
+  background: linear-gradient(180deg, var(--stf-surface) 0%, var(--stf-surface-2) 100%);
+  color: white;
+  border-right: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
   transition: width 180ms ease;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.25);
 }
 
 .stf-sidebar.is-collapsed {
@@ -53,25 +71,30 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #b0211f, #7a1513);
+  background: linear-gradient(135deg, var(--stf-accent), var(--stf-accent-dark));
   color: white;
   display: grid;
   place-items: center;
   font-weight: 800;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  box-shadow: 0 6px 18px rgba(215, 25, 32, 0.35);
 }
 
 .stf-brand__name {
-  color: #111;
+  font-weight: 700;
+  line-height: 1.1;
+  color: white;
 }
 
 .stf-brand__sub {
-  color: rgba(0,0,0,0.6);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
 }
+
 /* ===== NAV ===== */
 
 .stf-nav {
-  padding: 0px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -81,23 +104,26 @@ body {
   display: flex;
   align-items: center;
   padding: 14px 20px;
-  color: #111;
+  color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
+  border-radius: 0;
   font-weight: 500;
   transition: background 140ms ease, transform 140ms ease;
 }
 
 .stf-nav__item:hover {
-  background: rgba(102, 18, 16, 0.08);
+  background: rgba(255,255,255,0.08);
   transform: translateX(4px);
 }
 
 /* ACTIVE NAV */
 
 .stf-nav__item.is-active {
-  background: #661210; /* Main Red */
-  color: white;
+  background: var(--stf-active);
+  color: black;
   font-weight: 700;
+  box-shadow: none;
+  border: none;
 }
 
 .stf-nav__icon {
@@ -129,14 +155,15 @@ body {
   border: none;
   outline: none;
   appearance: none;
-  color: #111;
+  color: rgba(255, 255, 255, 0.75);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 140ms ease, transform 140ms ease;
 }
 
 .stf-logout:hover {
-  background: rgba(102, 18, 16, 0.08);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
 }
 
 .stf-logout:focus {
@@ -151,6 +178,7 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 40px;
 }
 
 /* ===== USER CHIP ===== */
@@ -161,7 +189,7 @@ body {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid var(--stf-border);
   background: #f9fafb;
   color: #111827;
   font-weight: 600;
@@ -172,14 +200,8 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #f4b400;
+  background: var(--stf-accent);
   display: inline-block;
-}
-/* ================= MAIN ================= */
-
-.stf-main {
-  flex: 1;
-  padding: 40px;
 }
 
 /* ================= TASK CARD ================= */
@@ -348,4 +370,13 @@ body {
 .stf-activity-meta {
   font-size: 13px;
   color: #6b7280;
+}
+
+/* Ito yung pangtanggal dun sa puti na collapse*/
+.stf-sidebar__toggle,
+.stf-topbar,
+.stf-topbar__toggle,
+.stf-toggle,
+.stf-header-toggle {
+  display: none !important;
 }

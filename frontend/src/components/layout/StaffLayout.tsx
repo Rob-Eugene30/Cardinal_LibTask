@@ -24,6 +24,7 @@ export default function StaffLayout() {
     () => [
       { label: "Dashboard", to: "/staff/dashboard" },
       { label: "My Tasks", to: "/staff/tasks" },
+      { label: "Calendar", to: "/staff/calendar" },
     ],
     []
   );
@@ -42,6 +43,15 @@ export default function StaffLayout() {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          className="stf-sidebar__toggle"
+          onClick={() => setCollapsed((prev) => !prev)}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? "→" : "←"}
+        </button>
 
         <nav className="stf-nav">
           {navItems.map((item) => (
@@ -63,15 +73,15 @@ export default function StaffLayout() {
 
         <div className="stf-sidebar__footer">
           <button
+            type="button"
             className="stf-logout"
             onClick={() => {
               logout();
               navigate("/login", { replace: true });
             }}
+            title={collapsed ? "Logout" : undefined}
           >
-            {!collapsed && (
-              <span className="stf-nav__label">Logout</span>
-            )}
+            {!collapsed && <span className="stf-nav__label">Logout</span>}
           </button>
         </div>
       </aside>
