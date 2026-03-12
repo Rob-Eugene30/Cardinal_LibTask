@@ -1,7 +1,7 @@
 import { apiGet, apiPost } from "./http";
 
 export type StatusUpdate = {
-  id?: number;
+  id?: string;
   task_id: string;
   status: string;
   note?: string | null;
@@ -9,11 +9,10 @@ export type StatusUpdate = {
   created_at?: string;
 };
 
-export function listStatusUpdates(taskId: number | string) {
-  return apiGet<{ items: StatusUpdate[] }>(`/status/${taskId}`);
+export function listStatusUpdates(taskId: string) {
+  return apiGet<{ items: StatusUpdate[] }>(`/status/${encodeURIComponent(taskId)}`);
 }
 
-// Note: backend currently restricts status updates to admin only.
 export function addStatusUpdate(payload: { task_id: string; status: string; note?: string | null }) {
   return apiPost<StatusUpdate>("/status", payload);
 }

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+
 import { getStaff, type StaffProfile } from "../../api/staff";
-import { listTasks, type Task as ApiTask } from "../../api/tasks";
+import { listTasks, type Task } from "../../api/tasks";
+import { getTaskStatusLabel, normalizeTaskStatus } from "../../types/task";
 
 export default function AdminDashboard() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
-  const [tasks, setTasks] = useState<ApiTask[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,18 +18,14 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
 
-        const rows = await getStaff();
-        if (!alive) return;
-        setStaff(rows);
-
-        const res: any = await listTasks();
+        const [staffRows, taskRows] = await Promise.all([getStaff(), listTasks()]);
         if (!alive) return;
 
-        const items: ApiTask[] = Array.isArray(res) ? res : res?.items ?? [];
-        setTasks(items);
-      } catch (e) {
+        setStaff(staffRows);
+        setTasks(taskRows.items ?? []);
+      } catch (err) {
         if (!alive) return;
-        setError((e as Error)?.message || "Failed to load data.");
+        setError((err as Error)?.message || "Failed to load data.");
       } finally {
         if (!alive) return;
         setLoading(false);
@@ -39,27 +37,26 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // ===== METRICS =====
-  const libraryStaff = staff.filter((s) => s.role !== "admin");
+  const libraryStaff = useMemo(() => staff.filter((member) => member.role !== "admin"), [staff]);
+  const staffNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of libraryStaff) {
+      map.set(member.id, (member.full_name ?? "").trim() || member.staff_code || member.id);
+    }
+    return map;
+  }, [libraryStaff]);
+
   const totalStaff = libraryStaff.length;
-
-  const activeTasks = tasks.filter((t) => (t.status ?? "").trim() === "In Progress").length;
-
-  const completedTasks = tasks.filter((t) => (t.status ?? "").trim() === "Finished").length;
+  const activeTasks = tasks.filter((task) => normalizeTaskStatus(task.status) === "in_progress").length;
+  const completedTasks = tasks.filter((task) => normalizeTaskStatus(task.status) === "done").length;
 
   const availableStaff = useMemo(() => {
-    const busyStaffIds = new Set(
-      tasks
-        .filter((t) => (t.status ?? "").trim() === "In Progress")
-        .map((t) => t.assigned_to)
-        .filter(Boolean)
+    const busy = new Set(
+      tasks.filter((task) => normalizeTaskStatus(task.status) === "in_progress").map((task) => task.assigned_to),
     );
+    return libraryStaff.filter((member) => !busy.has(member.id)).length;
+  }, [libraryStaff, tasks]);
 
-    return libraryStaff.filter((s) => !busyStaffIds.has(s.id)).length;
-  }, [tasks, libraryStaff]);
-
-  // ===== RECENT ACTIVITY =====
-  // (Show up to 5 latest tasks; assumes backend returns newest-first, but still safe.)
   const recentActivity = useMemo(() => tasks.slice(0, 5), [tasks]);
 
   return (
@@ -67,7 +64,6 @@ export default function AdminDashboard() {
       {loading && <div>Loading...</div>}
       {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {/* ===== HEADER ===== */}
       <div className="adm-dash-header">
         <div>
           <h1>Dashboard</h1>
@@ -75,7 +71,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
       <div className="adm-stats-grid">
         <div className="adm-stat-card">
           <div className="adm-stat-title">Total Staff</div>
@@ -98,30 +93,32 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ===== MAIN GRID ===== */}
       <div className="adm-main-grid">
-        {/* STAFF LIST */}
         <div className="adm-panel">
           <h3>Library Staff</h3>
-          {libraryStaff.map((s) => (
-            <div key={s.id} className="adm-staff-row">
-              {(s.full_name && s.full_name.trim()) || `User ${s.id.slice(0, 6)}…`}
-            </div>
-          ))}
+          {libraryStaff.length === 0 ? (
+            <div style={{ opacity: 0.6 }}>No staff records found.</div>
+          ) : (
+            libraryStaff.map((member) => (
+              <div key={member.id} className="adm-staff-row">
+                {(member.full_name && member.full_name.trim()) || `User ${member.id.slice(0, 6)}…`}
+              </div>
+            ))
+          )}
         </div>
 
-        {/* RECENT ACTIVITY */}
         <div className="adm-panel">
           <h3>Recent Activity</h3>
 
-          {recentActivity.length === 0 && (
-            <div style={{ opacity: 0.6 }}>No recent activity.</div>
-          )}
+          {recentActivity.length === 0 && <div style={{ opacity: 0.6 }}>No recent activity.</div>}
 
-          {recentActivity.map((task: any) => (
+          {recentActivity.map((task) => (
             <div key={task.id} className="adm-activity-row">
               <div className="adm-activity-title">{task.title}</div>
-              <div className="adm-activity-sub">Status: {task.status}</div>
+              <div className="adm-activity-sub">
+                {getTaskStatusLabel(task.status)}
+                {task.assigned_to ? ` • ${staffNameById.get(task.assigned_to) ?? task.assigned_to}` : ""}
+              </div>
             </div>
           ))}
         </div>

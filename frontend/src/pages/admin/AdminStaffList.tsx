@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../components/layout/AdminLayout.css";
+
 import { getStaff, inviteStaff, type StaffProfile as ApiStaffProfile } from "../../api/staff";
+import "../../components/layout/AdminLayout.css";
 
 type StaffStatus = "Active" | "Inactive";
 type StaffAvailability = "On Duty" | "Available" | "Leave";
 
 type StaffRow = {
-  uuid: string;          // real profile UUID (used for routing)
-  id: string;            // displayed Staff ID (staff_code)
+  uuid: string;
+  id: string;
   name: string;
   email: string;
   phone: string;
@@ -29,52 +30,47 @@ function EyeIcon() {
 }
 
 function pillClass(kind: "status" | "avail", value: string) {
-  if (kind === "status") {
-    return value === "Active" ? "adm-pill is-green" : "adm-pill is-gray";
-  }
+  if (kind === "status") return value === "Active" ? "adm-pill is-green" : "adm-pill is-gray";
   if (value === "On Duty") return "adm-pill is-blue";
   if (value === "Leave") return "adm-pill is-amber";
   return "adm-pill is-green-soft";
 }
 
-function normalizeAvailability(v: any): StaffAvailability {
-  const s = (v ?? "").toString().trim();
-  if (s === "On Duty") return "On Duty";
-  if (s === "Leave") return "Leave";
+function normalizeAvailability(value: unknown): StaffAvailability {
+  const text = String(value ?? "").trim();
+  if (text === "On Duty") return "On Duty";
+  if (text === "Leave") return "Leave";
   return "Available";
 }
 
-function normalizeStatus(v: any): StaffStatus {
-  const s = (v ?? "").toString().trim();
-  return s === "Inactive" ? "Inactive" : "Active";
+function normalizeStatus(value: unknown): StaffStatus {
+  return String(value ?? "").trim() === "Inactive" ? "Inactive" : "Active";
 }
 
-function toRow(p: any): StaffRow {
-  const fullName = (p.full_name ?? "").toString();
+function toRow(profile: ApiStaffProfile): StaffRow {
   return {
-    uuid: p.id,
-    id: (p.staff_code ?? p.id).toString(),
-    name: fullName,
-    email: (p.email ?? "").toString(),
-    phone: (p.phone ?? "").toString(),
-    role: (p.job_title ?? "").toString(),
-    availability: normalizeAvailability(p.availability),
-    status: normalizeStatus(p.employment_status),
+    uuid: profile.id,
+    id: String(profile.staff_code ?? profile.id),
+    name: String(profile.full_name ?? ""),
+    email: String(profile.email ?? ""),
+    phone: String(profile.phone ?? ""),
+    role: String(profile.job_title ?? ""),
+    availability: normalizeAvailability(profile.availability),
+    status: normalizeStatus(profile.employment_status),
   };
 }
 
 export default function AdminStaffList() {
   const navigate = useNavigate();
-
   const [staffList, setStaffList] = useState<StaffRow[]>([]);
-  const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"All" | StaffStatus>("All");
   const [showAdd, setShowAdd] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadStaff() {
-    const rows: ApiStaffProfile[] = await getStaff();
-    const mapped = rows.map((p: any) => toRow(p));
-    setStaffList(mapped);
+    const rows = await getStaff();
+    setStaffList(rows.map(toRow));
   }
 
   useEffect(() => {
@@ -83,9 +79,9 @@ export default function AdminStaffList() {
     (async () => {
       try {
         await loadStaff();
-      } catch (e: any) {
+      } catch (err) {
         if (!alive) return;
-        console.error(e);
+        setError((err as Error)?.message ?? "Failed to load staff.");
         setStaffList([]);
       }
     })();
@@ -96,19 +92,19 @@ export default function AdminStaffList() {
   }, []);
 
   const rows = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return staffList.filter((s) => {
-      const matchQ =
-        !query ||
-        s.id.toLowerCase().includes(query) ||
-        s.name.toLowerCase().includes(query) ||
-        s.email.toLowerCase().includes(query) ||
-        s.phone.toLowerCase().includes(query);
+    const normalizedQuery = query.trim().toLowerCase();
+    return staffList.filter((staff) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        staff.id.toLowerCase().includes(normalizedQuery) ||
+        staff.name.toLowerCase().includes(normalizedQuery) ||
+        staff.email.toLowerCase().includes(normalizedQuery) ||
+        staff.phone.toLowerCase().includes(normalizedQuery);
 
-      const matchStatus = status === "All" ? true : s.status === status;
-      return matchQ && matchStatus;
+      const matchesStatus = status === "All" ? true : staff.status === status;
+      return matchesQuery && matchesStatus;
     });
-  }, [q, status, staffList]);
+  }, [query, staffList, status]);
 
   return (
     <div className="adm-page">
@@ -126,16 +122,12 @@ export default function AdminStaffList() {
       <div className="adm-card adm-toolbar">
         <div className="adm-search">
           <span className="adm-search__icon">🔍</span>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name, ID, email, or phone..."
-          />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, ID, email, or phone..." />
         </div>
 
         <div className="adm-toolbar__right">
           <div className="adm-filter">
-            <select value={status} onChange={(e) => setStatus(e.target.value as any)}>
+            <select value={status} onChange={(event) => setStatus(event.target.value as "All" | StaffStatus)}>
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -143,6 +135,8 @@ export default function AdminStaffList() {
           </div>
         </div>
       </div>
+
+      {error && <div className="adm-form-error">{error}</div>}
 
       <div className="adm-card adm-tablewrap">
         <table className="adm-table">
@@ -160,24 +154,21 @@ export default function AdminStaffList() {
           </thead>
 
           <tbody>
-            {rows.map((s) => (
-              <tr key={s.uuid}>
-                <td>{s.id}</td>
-                <td>{s.name}</td>
-                <td>{s.email}</td>
-                <td>{s.phone}</td>
-                <td>{s.role}</td>
+            {rows.map((staff) => (
+              <tr key={staff.uuid}>
+                <td>{staff.id}</td>
+                <td>{staff.name}</td>
+                <td>{staff.email}</td>
+                <td>{staff.phone}</td>
+                <td>{staff.role}</td>
                 <td>
-                  <span className={pillClass("avail", s.availability)}>{s.availability}</span>
+                  <span className={pillClass("avail", staff.availability)}>{staff.availability}</span>
                 </td>
                 <td>
-                  <span className={pillClass("status", s.status)}>{s.status}</span>
+                  <span className={pillClass("status", staff.status)}>{staff.status}</span>
                 </td>
                 <td>
-                  <button
-                    className="adm-iconbtn is-blue"
-                    onClick={() => navigate(`/admin/staff/${encodeURIComponent(s.uuid)}`)}
-                  >
+                  <button className="adm-iconbtn is-blue" onClick={() => navigate(`/admin/staff/${encodeURIComponent(staff.uuid)}`)}>
                     <EyeIcon />
                   </button>
                 </td>
@@ -199,22 +190,17 @@ export default function AdminStaffList() {
         <AddStaffModal
           onClose={() => setShowAdd(false)}
           onSave={async (newStaff) => {
-            try {
-              await inviteStaff({
-                staff_code: newStaff.id,
-                full_name: newStaff.name,
-                email: newStaff.email,
-                phone: newStaff.phone,
-                job_title: newStaff.role,
-                availability: newStaff.availability,
-                employment_status: newStaff.status,
-              });
-
-              await loadStaff();
-              setShowAdd(false);
-            } catch (e: any) {
-              window.alert(e?.message ?? String(e));
-            }
+            await inviteStaff({
+              staff_code: newStaff.id,
+              full_name: newStaff.name,
+              email: newStaff.email,
+              phone: newStaff.phone,
+              job_title: newStaff.role,
+              availability: newStaff.availability,
+              employment_status: newStaff.status,
+            });
+            await loadStaff();
+            setShowAdd(false);
           }}
         />
       )}
@@ -238,14 +224,24 @@ function AddStaffModal({ onClose, onSave }: AddStaffModalProps) {
     availability: "Available",
     status: "Active",
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    setForm({ ...form, [e.target.name]: e.target.value } as StaffRow);
+  function handleChange(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value } as StaffRow));
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    await onSave(form);
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(form);
+    } catch (err) {
+      setError((err as Error)?.message ?? "Failed to save staff.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -254,29 +250,31 @@ function AddStaffModal({ onClose, onSave }: AddStaffModalProps) {
         <h2>Add Staff</h2>
 
         <form onSubmit={handleSubmit} className="adm-form">
-          <input name="id" placeholder="Staff ID" required onChange={handleChange} />
-          <input name="name" placeholder="Full Name" required onChange={handleChange} />
-          <input name="email" placeholder="Email" required onChange={handleChange} />
-          <input name="phone" placeholder="Phone" required onChange={handleChange} />
-          <input name="role" placeholder="Role" required onChange={handleChange} />
+          <input name="id" placeholder="Staff ID" required onChange={handleChange} value={form.id} />
+          <input name="name" placeholder="Full Name" required onChange={handleChange} value={form.name} />
+          <input name="email" placeholder="Email" required onChange={handleChange} value={form.email} />
+          <input name="phone" placeholder="Phone" required onChange={handleChange} value={form.phone} />
+          <input name="role" placeholder="Role" required onChange={handleChange} value={form.role} />
 
-          <select name="availability" onChange={handleChange}>
+          <select name="availability" onChange={handleChange} value={form.availability}>
             <option value="Available">Available</option>
             <option value="On Duty">On Duty</option>
             <option value="Leave">Leave</option>
           </select>
 
-          <select name="status" onChange={handleChange}>
+          <select name="status" onChange={handleChange} value={form.status}>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
+
+          {error && <div className="adm-form-error">{error}</div>}
 
           <div className="adm-modal__actions">
             <button type="button" onClick={onClose} className="adm-btn adm-btn--ghost">
               Cancel
             </button>
-            <button type="submit" className="adm-btn adm-btn--primary">
-              Save Staff
+            <button type="submit" className="adm-btn adm-btn--primary" disabled={saving}>
+              {saving ? "Saving..." : "Save Staff"}
             </button>
           </div>
         </form>
