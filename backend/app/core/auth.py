@@ -14,10 +14,9 @@ from app.core.errors import bad_request, unauthorized
 
 bearer = HTTPBearer(auto_error=False)
 
-# Simple in-memory JWKS cache (fine for dev)
 _JWKS_CACHE: dict[str, Any] | None = None
 _JWKS_FETCHED_AT: float | None = None
-_JWKS_TTL_SECONDS = 60 * 10  # 10 minutes
+_JWKS_TTL_SECONDS = 60 * 10
 
 
 def _jwks_url() -> str:
@@ -72,14 +71,9 @@ def _select_jwk(jwks: dict[str, Any], kid: str) -> Optional[dict[str, Any]]:
 
 
 def verify_supabase_jwt(token: str) -> Dict[str, Any]:
-    """
-    Verify a Supabase JWT and return its claims.
-    Uses JWKS and constructs a proper key object for ES256/RS256.
-    """
     if not token:
         unauthorized("Missing Bearer token.")
 
-    # Use the token's declared algorithm (most reliable)
     try:
         header = jwt.get_unverified_header(token)
     except Exception:
@@ -96,7 +90,6 @@ def verify_supabase_jwt(token: str) -> Dict[str, Any]:
     jwks = _get_jwks()
     jwk_key = _select_jwk(jwks, kid)
 
-    # If key rotated, refresh once
     if not jwk_key:
         jwks = _get_jwks(force_refresh=True)
         jwk_key = _select_jwk(jwks, kid)
@@ -104,7 +97,6 @@ def verify_supabase_jwt(token: str) -> Dict[str, Any]:
     if not jwk_key:
         unauthorized("Signing key not found for token (kid mismatch).")
 
-    # Construct key and decode using PEM
     try:
         key_obj = jwk.construct(jwk_key, algorithm=alg)
         public_pem = key_obj.to_pem().decode()
@@ -132,15 +124,26 @@ def verify_supabase_jwt(token: str) -> Dict[str, Any]:
         unauthorized("Token verification failed.")
 
 
+def _clean_role(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    role = value.strip().lower()
+    if not role:
+        return None
+    if role in {"authenticated", "anon", "anonymous", "service_role"}:
+        return None
+    return role
+
+
 def _extract_role_from_claims(claims: Dict[str, Any]) -> Optional[str]:
     user_meta = claims.get("user_metadata") or {}
     app_meta = claims.get("app_metadata") or {}
 
     for container in (user_meta, app_meta, claims):
         if isinstance(container, dict):
-            role = container.get("app_role") or container.get("role")
-            if isinstance(role, str) and role.strip():
-                return role.strip().lower()
+            role = _clean_role(container.get("app_role")) or _clean_role(container.get("role"))
+            if role:
+                return role
     return None
 
 
@@ -170,9 +173,7 @@ def _fetch_profile_role_via_rest(user_id: str, access_token: str) -> Optional[st
     try:
         rows = r.json()
         if isinstance(rows, list) and rows:
-            role = rows[0].get("role")
-            if isinstance(role, str) and role.strip():
-                return role.strip().lower()
+            return _clean_role(rows[0].get("role"))
     except Exception:
         return None
 
@@ -195,7 +196,7 @@ def get_current_user(creds: HTTPAuthorizationCredentials | None = Depends(bearer
     jwt_role = _extract_role_from_claims(claims)
     db_role = _fetch_profile_role_via_rest(user_id=str(user_id), access_token=token)
 
-    effective_role = jwt_role or db_role
+    effective_role = db_role or jwt_role
 
     return {
         "user_id": str(user_id),

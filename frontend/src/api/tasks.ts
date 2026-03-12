@@ -13,9 +13,10 @@ export type CreateTaskInput = {
   description?: string | null;
   assigned_to: string;
   due_date?: string | null;
+  priority?: "Low" | "Medium" | "High";
 };
 
-export type UpdateTaskInput = Partial<Pick<Task, "title" | "description" | "assigned_to" | "status">> & {
+export type UpdateTaskInput = Partial<Pick<Task, "title" | "description" | "assigned_to" | "status" | "priority">> & {
   due_date?: string | null;
 };
 

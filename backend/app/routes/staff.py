@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.core.auth import get_current_user
 from app.core.config import settings
 from app.core.errors import bad_request, not_found, unauthorized
 from app.core.roles import require_admin
@@ -43,7 +44,6 @@ class StaffUpdateIn(BaseModel):
     employee_since: str | None = None
 
 
-
 def _auth_admin_invite(email: str) -> dict:
     if not settings.SUPABASE_URL:
         bad_request("SUPABASE_URL is not configured.")
@@ -57,7 +57,8 @@ def _auth_admin_invite(email: str) -> dict:
 
 
 @router.get("/staff", response_model=List[Dict[str, Any]])
-def list_staff(user=Depends(require_admin)):
+def list_staff(user=Depends(get_current_user)):
+    require_admin(user)
     rows = sb_get(
         "/rest/v1/profiles",
         user_jwt=user.get("access_token"),
@@ -71,7 +72,8 @@ def list_staff(user=Depends(require_admin)):
 
 
 @router.get("/staff/{staff_id}", response_model=Dict[str, Any])
-def get_staff(staff_id: str, user=Depends(require_admin)):
+def get_staff(staff_id: str, user=Depends(get_current_user)):
+    require_admin(user)
     rows = sb_get(
         "/rest/v1/profiles",
         user_jwt=user.get("access_token"),
@@ -87,7 +89,8 @@ def get_staff(staff_id: str, user=Depends(require_admin)):
 
 
 @router.post("/staff/invite", response_model=Dict[str, Any])
-def invite_staff(payload: StaffInviteIn, user=Depends(require_admin)):
+def invite_staff(payload: StaffInviteIn, user=Depends(get_current_user)):
+    require_admin(user)
     invited = _auth_admin_invite(payload.email.strip().lower())
     user_id = invited["id"]
 
@@ -127,7 +130,8 @@ def invite_staff(payload: StaffInviteIn, user=Depends(require_admin)):
 
 
 @router.patch("/staff/{staff_id}", response_model=Dict[str, Any])
-def update_staff(staff_id: str, payload: StaffUpdateIn, user=Depends(require_admin)):
+def update_staff(staff_id: str, payload: StaffUpdateIn, user=Depends(get_current_user)):
+    require_admin(user)
     patch = {key: value for key, value in payload.model_dump().items() if value is not None}
     if not patch:
         bad_request("No fields provided for update.")
@@ -144,7 +148,8 @@ def update_staff(staff_id: str, payload: StaffUpdateIn, user=Depends(require_adm
 
 
 @router.delete("/staff/{staff_id}")
-def delete_staff(staff_id: str, user=Depends(require_admin)):
+def delete_staff(staff_id: str, user=Depends(get_current_user)):
+    require_admin(user)
     rows = sb_admin_patch(
         "/rest/v1/profiles",
         json={"employment_status": "Inactive", "availability": "Leave"},
@@ -157,7 +162,6 @@ def delete_staff(staff_id: str, user=Depends(require_admin)):
     try:
         sb_admin_delete(f"/auth/v1/admin/users/{staff_id}", params={"should_soft_delete": "true"})
     except Exception:
-        # Soft-disable in profile is enough to keep the UI consistent even when auth delete is blocked.
         pass
 
     return {"deleted": True, "staff_id": staff_id}

@@ -16,7 +16,7 @@ export default function AdminCreateTasks() {
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [dueDateTime, setDueDateTime] = useState("");
-  const [, setPriority] = useState<Priority>("High");
+  const [priority, setPriority] = useState<Priority>("Medium");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +34,10 @@ export default function AdminCreateTasks() {
         const rows = await getStaff();
         if (!alive) return;
         setStaffList(rows.filter((user) => user.role === "staff"));
-      } catch {
+      } catch (err) {
         if (!alive) return;
         setStaffList([]);
+        setError((err as Error)?.message ?? "Failed to load staff.");
       } finally {
         if (!alive) return;
         setStaffLoading(false);
@@ -65,6 +66,7 @@ export default function AdminCreateTasks() {
         description: description || null,
         assigned_to: assignedTo,
         due_date: normalizeDueDate(dueDateTime),
+        priority,
       });
 
       setOk("Task created successfully.");
@@ -72,7 +74,7 @@ export default function AdminCreateTasks() {
       setDescription("");
       setAssignedTo("");
       setDueDateTime("");
-      setPriority("High");
+      setPriority("Medium");
     } catch (err) {
       setError((err as Error)?.message ?? "Failed to create task.");
     } finally {
@@ -103,7 +105,9 @@ export default function AdminCreateTasks() {
           <div className="adm-form-grid">
             <div className="adm-form-group">
               <label>Priority</label>
-              <select value="High" disabled>
+              <select value={priority} onChange={(event) => setPriority(event.target.value as Priority)}>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
                 <option value="High">High</option>
               </select>
             </div>

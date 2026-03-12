@@ -21,6 +21,7 @@ class TaskPatch(BaseModel):
     due_date: date | None = None
     assigned_to: str | None = None
     status: str | None = None
+    priority: str | None = None
 
 
 @router.get("", response_model=TaskListOut)

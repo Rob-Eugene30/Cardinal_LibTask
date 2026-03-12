@@ -19,6 +19,7 @@ _STATUS_ALIAS_MAP = {
 }
 
 _ALLOWED_STATUSES = {"pending", "in_progress", "done", "on_hold", "cancelled"}
+_ALLOWED_PRIORITIES = {"Low", "Medium", "High"}
 
 
 def _normalize_due_date(value) -> str | None:
@@ -43,6 +44,22 @@ def normalize_status(value: str | None) -> str | None:
     normalized = _STATUS_ALIAS_MAP.get(str(value).strip().lower())
     if not normalized:
         bad_request(f"Invalid status. Allowed: {sorted(_ALLOWED_STATUSES)}")
+    return normalized
+
+
+def normalize_priority(value: str | None) -> str:
+    if value is None:
+        return "Medium"
+
+    raw = str(value).strip().lower()
+    mapping = {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+    }
+    normalized = mapping.get(raw)
+    if not normalized:
+        bad_request(f"Invalid priority. Allowed: {sorted(_ALLOWED_PRIORITIES)}")
     return normalized
 
 
@@ -81,6 +98,7 @@ def create_task(payload: dict, actor: dict) -> dict:
             "due_date": _normalize_due_date(payload.get("due_date")),
             "created_by": actor["user_id"],
             "assigned_to": payload["assigned_to"],
+            "priority": normalize_priority(payload.get("priority")),
             "status": "pending",
         },
         params={"select": "*"},
@@ -107,6 +125,8 @@ def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
         out["assigned_to"] = patch["assigned_to"]
     if "status" in patch:
         out["status"] = normalize_status(patch["status"])
+    if "priority" in patch:
+        out["priority"] = normalize_priority(patch["priority"])
 
     if not out:
         bad_request("No valid fields provided.")

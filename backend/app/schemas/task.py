@@ -8,6 +8,7 @@ class TaskCreate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     assigned_to: str = Field(min_length=1)
     due_date: date | None = None
+    priority: str = Field(default="Medium")
 
 
 class TaskOut(BaseModel):
@@ -17,6 +18,7 @@ class TaskOut(BaseModel):
     assigned_to: str
     created_by: str
     due_date: date | None = None
+    priority: str = "Medium"
     status: str
     created_at: datetime
     updated_at: datetime | None = None
