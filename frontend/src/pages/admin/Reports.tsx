@@ -132,6 +132,10 @@ export default function Reports() {
     void refresh();
   }, []);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const selectedStaffRow = useMemo(() => {
     if (!staffSummary || !filters.staff_id) return null;
     return staffSummary.items.find((item) => item.staff_id === filters.staff_id) || null;
@@ -171,15 +175,29 @@ export default function Reports() {
           <div className="rep-sub">{filterSubtitle}</div>
         </div>
 
-        <div className="rep-filters">
+        {/* Filters + buttons container */}
+        <div
+          className="rep-filters"
+          style={{
+            display: "flex",
+            gap: "20px",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+          }}
+        >
           <div className="rep-field">
-            <label>Start Date</label>
-            <input type="date" value={filters.start_date} onChange={(event) => setFilters((prev) => ({ ...prev, start_date: event.target.value }))} />
-          </div>
-
-          <div className="rep-field">
-            <label>End Date</label>
-            <input type="date" value={filters.end_date} onChange={(event) => setFilters((prev) => ({ ...prev, end_date: event.target.value }))} />
+            <label>Date</label>
+            <input
+              type="date"
+              value={filters.start_date}
+              onChange={(e) =>
+                setFilters((f) => ({
+                  ...f,
+                  start_date: e.target.value,
+                  end_date: e.target.value,
+                }))
+              }
+            />
           </div>
 
           <div className="rep-field">
@@ -194,9 +212,20 @@ export default function Reports() {
             </select>
           </div>
 
-          <button className="adm-btn-primary rep-apply" onClick={() => void refresh()} disabled={loading}>
-            {loading ? "Loading..." : "Apply"}
-          </button>
+          {/* Buttons aligned to bottom */}
+          <div style={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+            <button
+              className="adm-btn-primary rep-apply"
+              onClick={refresh}
+              disabled={loading}
+              style={{ alignSelf: "flex-end" }}
+            >
+              {loading ? "Loading..." : "Apply"}
+            </button>
+            <button className="adm-btn-primary" onClick={handlePrint} style={{ alignSelf: "flex-end" }}>
+              Print PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -208,6 +237,7 @@ export default function Reports() {
         <StatCard title="Closed Tasks" value={tasksSummary?.closed_tasks ?? 0} tone="good" />
       </div>
 
+      {/* Schedule + Analytics */}
       <div className="rep-grid-2">
         <div className="rep-card">
           <div className="rep-card__head">
@@ -216,7 +246,6 @@ export default function Reports() {
               <div className="rep-card__sub">{filters.start_date ? `Date: ${filters.start_date}` : "Select a date"}</div>
             </div>
           </div>
-
           <div className="rep-list">
             {tasksSummary?.by_status?.length ? (
               tasksSummary.by_status.map((status) => (
@@ -241,7 +270,6 @@ export default function Reports() {
               <div className="rep-card__sub">Tag-based analytics from current task data.</div>
             </div>
           </div>
-
           <div className="rep-soon">
             <div className="rep-soon__box">
               <div className="rep-soon__title">Top Tag</div>
@@ -255,6 +283,7 @@ export default function Reports() {
         </div>
       </div>
 
+      {/* Pie + Table */}
       <div className="rep-grid-2 rep-grid-2--wide">
         <div className="rep-card">
           <div className="rep-card__head rep-card__head--split">
@@ -264,10 +293,8 @@ export default function Reports() {
             </div>
             <div className="rep-pill">Total: {pie.total}</div>
           </div>
-
           <div className="rep-pie-wrap">
             <div className="rep-pie" style={{ background: pie.gradient }} />
-
             <div className="rep-legend">
               {pieSegments.map((segment, index) => (
                 <div key={segment.label} className="rep-legend__row">
