@@ -23,10 +23,13 @@ def _headers(*, apikey: str, bearer: str | None = None, extra: dict[str, str] | 
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+
     if bearer:
         headers["Authorization"] = f"Bearer {bearer}"
+
     if extra:
         headers.update(extra)
+
     return headers
 
 
@@ -39,13 +42,17 @@ def _handle_error(resp: httpx.Response):
 
 
 # ---------------------------------------------------------------------------
-# User-scoped PostgREST helpers (uses ANON key + the user's access token)
+# User-scoped PostgREST helpers
 # ---------------------------------------------------------------------------
 
 def sb_get(path: str, *, user_jwt: str | None = None, params: dict | None = None) -> Any:
     url = _base_url() + path
     with httpx.Client(timeout=20) as client:
-        r = client.get(url, headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt), params=params)
+        r = client.get(
+            url,
+            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt),
+            params=params,
+        )
         if r.status_code >= 400:
             _handle_error(r)
         return r.json()
@@ -59,17 +66,38 @@ def sb_post(
     params: dict | None = None,
     extra_headers: dict[str, str] | None = None,
 ) -> Any:
+    """
+    CHANGE NAME: Supabase Insert Representation Fix
+
+    Forces Supabase to return inserted rows so the backend
+    does not incorrectly treat successful inserts as failures.
+    """
+
     url = _base_url() + path
+
+    headers = {
+        "Prefer": "return=representation"  # <-- FIX
+    }
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.post(
             url,
-            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            headers=_headers(
+                apikey=settings.SUPABASE_ANON_KEY,
+                bearer=user_jwt,
+                extra=headers,
+            ),
             json=json,
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []
 
 
 def sb_patch(
@@ -81,16 +109,28 @@ def sb_patch(
     extra_headers: dict[str, str] | None = None,
 ) -> Any:
     url = _base_url() + path
+
+    headers = {"Prefer": "return=representation"}
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.patch(
             url,
-            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            headers=_headers(
+                apikey=settings.SUPABASE_ANON_KEY,
+                bearer=user_jwt,
+                extra=headers,
+            ),
             json=json,
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []
 
 
 def sb_delete(
@@ -101,21 +141,31 @@ def sb_delete(
     extra_headers: dict[str, str] | None = None,
 ) -> Any:
     url = _base_url() + path
+
+    headers = {"Prefer": "return=representation"}
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.delete(
             url,
-            headers=_headers(apikey=settings.SUPABASE_ANON_KEY, bearer=user_jwt, extra=extra_headers),
+            headers=_headers(
+                apikey=settings.SUPABASE_ANON_KEY,
+                bearer=user_jwt,
+                extra=headers,
+            ),
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []
 
 
 # ---------------------------------------------------------------------------
-# Admin helpers (service role key). Use for:
-# - inviting/creating auth users
-# - bypassing RLS safely on the server
+# Admin helpers
 # ---------------------------------------------------------------------------
 
 def _require_service_key() -> str:
@@ -127,10 +177,17 @@ def _require_service_key() -> str:
 def sb_admin_get(path: str, *, params: dict | None = None) -> Any:
     url = _base_url() + path
     key = _require_service_key()
+
     with httpx.Client(timeout=20) as client:
-        r = client.get(url, headers=_headers(apikey=key, bearer=key), params=params)
+        r = client.get(
+            url,
+            headers=_headers(apikey=key, bearer=key),
+            params=params,
+        )
+
         if r.status_code >= 400:
             _handle_error(r)
+
         return r.json()
 
 
@@ -143,16 +200,24 @@ def sb_admin_post(
 ) -> Any:
     url = _base_url() + path
     key = _require_service_key()
+
+    headers = {"Prefer": "return=representation"}
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.post(
             url,
-            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            headers=_headers(apikey=key, bearer=key, extra=headers),
             json=json,
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []
 
 
 def sb_admin_patch(
@@ -164,16 +229,24 @@ def sb_admin_patch(
 ) -> Any:
     url = _base_url() + path
     key = _require_service_key()
+
+    headers = {"Prefer": "return=representation"}
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.patch(
             url,
-            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            headers=_headers(apikey=key, bearer=key, extra=headers),
             json=json,
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []
 
 
 def sb_admin_delete(
@@ -184,12 +257,20 @@ def sb_admin_delete(
 ) -> Any:
     url = _base_url() + path
     key = _require_service_key()
+
+    headers = {"Prefer": "return=representation"}
+
+    if extra_headers:
+        headers.update(extra_headers)
+
     with httpx.Client(timeout=20) as client:
         r = client.delete(
             url,
-            headers=_headers(apikey=key, bearer=key, extra=extra_headers),
+            headers=_headers(apikey=key, bearer=key, extra=headers),
             params=params,
         )
+
         if r.status_code >= 400:
             _handle_error(r)
-        return r.json() if r.text else None
+
+        return r.json() if r.text else []

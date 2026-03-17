@@ -7,6 +7,7 @@ from app.core.auth import get_current_user
 from app.core.roles import require_admin
 from app.schemas.task import TaskCreate, TaskListOut, TaskOut
 from app.services.task_service import create_task, get_task, list_tasks, set_task_tags, update_task_basic
+from app.services.task_service import delete_task
 
 router = APIRouter()
 
@@ -51,3 +52,8 @@ def patch_task(task_id: str, payload: TaskPatch, user=Depends(get_current_user))
 def put_task_tags(task_id: str, payload: TaskTagUpdate, user=Depends(get_current_user)):
     require_admin(user)
     return set_task_tags(task_id, payload.tag_ids, user)
+
+@router.delete("/{task_id}", response_model=TaskOut)
+def remove_task(task_id: str, user=Depends(get_current_user)):
+    require_admin(user)
+    return delete_task(task_id, user)

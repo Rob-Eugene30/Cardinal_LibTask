@@ -1,6 +1,7 @@
 from app.core.errors import bad_request, forbidden, not_found
 from app.db.supabase_http import sb_admin_patch, sb_admin_post, sb_get
 from app.services.task_service import normalize_status
+from app.services.audit_service import log_audit
 
 REST = "/rest/v1"
 
@@ -46,10 +47,19 @@ def add_status_update(task_id: str, new_status: str, note: str | None, actor: di
         params={"select": "*"},
         extra_headers={"Prefer": "return=representation"},
     )
+
     if not history:
         bad_request("Status update not recorded.")
-    return history[0]
 
+    log_audit(
+        actor=actor,
+        action="status_update",
+        entity_type="task",
+        entity_id=task_id,
+        new_data={"status": status_value, "note": note},
+    )
+
+    return history[0]
 
 def list_status_updates(task_id: str, actor: dict) -> list[dict]:
     return sb_get(

@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from app.core.errors import bad_request, forbidden, not_found
 from app.db.supabase_http import sb_delete, sb_get, sb_patch, sb_post
+from app.services.audit_service import log_audit
 
 REST = "/rest/v1"
 
@@ -52,15 +53,29 @@ def normalize_priority(value: str | None) -> str:
         return "Medium"
 
     raw = str(value).strip().lower()
-    mapping = {
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
-    }
+    mapping = {"low": "Low", "medium": "Medium", "high": "High"}
     normalized = mapping.get(raw)
     if not normalized:
         bad_request(f"Invalid priority. Allowed: {sorted(_ALLOWED_PRIORITIES)}")
     return normalized
+
+
+def _resolve_staff_id(identifier: str, jwt: str) -> str:
+    identifier = str(identifier).strip()
+
+    if len(identifier) == 36 and identifier.count("-") == 4:
+        return identifier
+
+    rows = sb_get(
+        f"{REST}/profiles",
+        user_jwt=jwt,
+        params={"select": "id,email", "email": f"eq.{identifier}", "limit": 1},
+    )
+
+    if not rows:
+        bad_request(f"Assigned staff not found: {identifier}")
+
+    return rows[0]["id"]
 
 
 def list_tasks(actor: dict) -> list[dict]:
@@ -89,23 +104,51 @@ def create_task(payload: dict, actor: dict) -> dict:
         forbidden("Admin access required.")
 
     jwt = actor["access_token"]
+    staff_id = _resolve_staff_id(payload["assigned_to"], jwt)
+
+    existing = sb_get(
+        f"{REST}/tasks",
+        user_jwt=jwt,
+        params={
+            "title": f"eq.{payload['title'].strip()}",
+            "created_by": f"eq.{actor['user_id']}",
+            "limit": 1,
+        },
+    )
+    if existing:
+        return existing[0]
+
+    insert_payload = {
+        "title": payload["title"].strip(),
+        "description": payload.get("description"),
+        "due_date": _normalize_due_date(payload.get("due_date")),
+        "created_by": actor["user_id"],
+        "assigned_to": staff_id,
+        "priority": normalize_priority(payload.get("priority")),
+        "status": "pending",
+    }
+
     rows = sb_post(
         f"{REST}/tasks",
         user_jwt=jwt,
-        json={
-            "title": payload["title"].strip(),
-            "description": payload.get("description"),
-            "due_date": _normalize_due_date(payload.get("due_date")),
-            "created_by": actor["user_id"],
-            "assigned_to": payload["assigned_to"],
-            "priority": normalize_priority(payload.get("priority")),
-            "status": "pending",
-        },
+        json=insert_payload,
         params={"select": "*"},
     )
+
     if not rows:
         bad_request("Task not created.")
-    return rows[0]
+
+    task = rows[0]
+
+    log_audit(
+        actor=actor,
+        action="create",
+        entity_type="task",
+        entity_id=task["id"],
+        new_data=task,
+    )
+
+    return task
 
 
 def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
@@ -113,6 +156,8 @@ def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
         forbidden("Admin access required.")
 
     jwt = actor["access_token"]
+    old_task = get_task(task_id, actor)
+
     out: dict = {}
 
     if "title" in patch and patch["title"] is not None:
@@ -122,7 +167,7 @@ def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
     if "due_date" in patch:
         out["due_date"] = _normalize_due_date(patch["due_date"])
     if "assigned_to" in patch and patch["assigned_to"] is not None:
-        out["assigned_to"] = patch["assigned_to"]
+        out["assigned_to"] = _resolve_staff_id(patch["assigned_to"], jwt)
     if "status" in patch:
         out["status"] = normalize_status(patch["status"])
     if "priority" in patch:
@@ -137,9 +182,54 @@ def update_task_basic(task_id: str, patch: dict, actor: dict) -> dict:
         json=out,
         params={"id": f"eq.{task_id}", "select": "*"},
     )
+
     if not rows:
         not_found("Task not found or not updated.")
-    return rows[0]
+
+    updated = rows[0]
+
+    log_audit(
+        actor=actor,
+        action="update",
+        entity_type="task",
+        entity_id=task_id,
+        old_data=old_task,
+        new_data=updated,
+    )
+
+    return updated
+
+
+# ✅ SOFT DELETE (NO REAL DELETE)
+def delete_task(task_id: str, actor: dict) -> dict:
+    if actor.get("app_role") != "admin":
+        forbidden("Admin access required.")
+
+    jwt = actor["access_token"]
+    old_task = get_task(task_id, actor)
+
+    rows = sb_patch(
+        f"{REST}/tasks",
+        user_jwt=jwt,
+        json={"status": "cancelled"},
+        params={"id": f"eq.{task_id}", "select": "*"},
+    )
+
+    if not rows:
+        not_found("Task not found.")
+
+    updated = rows[0]
+
+    log_audit(
+        actor=actor,
+        action="delete",
+        entity_type="task",
+        entity_id=task_id,
+        old_data=old_task,
+        new_data=updated,
+    )
+
+    return updated
 
 
 def set_task_tags(task_id: str, tag_ids: list[str], actor: dict) -> dict:
@@ -156,6 +246,7 @@ def set_task_tags(task_id: str, tag_ids: list[str], actor: dict) -> dict:
     )
 
     clean_tag_ids = [tag_id for tag_id in tag_ids if str(tag_id).strip()]
+
     if clean_tag_ids:
         payload = [{"task_id": task_id, "tag_id": tid} for tid in clean_tag_ids]
         sb_post(
@@ -164,5 +255,13 @@ def set_task_tags(task_id: str, tag_ids: list[str], actor: dict) -> dict:
             json=payload,
             params={"select": "task_id,tag_id"},
         )
+
+    log_audit(
+        actor=actor,
+        action="update_tags",
+        entity_type="task",
+        entity_id=task_id,
+        new_data={"tag_ids": clean_tag_ids},
+    )
 
     return {"ok": True, "task_id": task_id, "tag_ids": clean_tag_ids}

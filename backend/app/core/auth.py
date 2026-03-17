@@ -150,14 +150,19 @@ def _extract_role_from_claims(claims: Dict[str, Any]) -> Optional[str]:
 def _fetch_profile_role_via_rest(user_id: str, access_token: str) -> Optional[str]:
     if not settings.SUPABASE_URL:
         bad_request("SUPABASE_URL is not configured.")
-    if not settings.SUPABASE_ANON_KEY:
-        bad_request("SUPABASE_ANON_KEY is not configured.")
 
     url = settings.SUPABASE_URL.rstrip("/") + "/rest/v1/profiles"
     params = {"select": "role", "id": f"eq.{user_id}"}
+
+    # CHANGE NAME: Role Resolution Fix – Use Service Role Key for Profile Lookup
+    # The previous version used SUPABASE_ANON_KEY which is blocked by RLS.
+    # Using the service role key ensures the backend can always read the user's role.
+
+    api_key = settings.SUPABASE_SERVICE_ROLE_KEY or settings.SUPABASE_ANON_KEY
+
     headers = {
-        "apikey": settings.SUPABASE_ANON_KEY,
-        "Authorization": f"Bearer {access_token}",
+        "apikey": api_key,
+        "Authorization": f"Bearer {api_key}",  # <-- CHANGED
         "Accept": "application/json",
     }
 

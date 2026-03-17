@@ -11,6 +11,7 @@ from app.routes.tasks import router as tasks_router
 from app.routes.status import router as status_router
 from app.routes.tags import router as tags_router
 from app.routes.reports import router as reports_router
+from app.routes.audit import router as audit_router
 from app.routes import me
 from app.routes.auth import router as auth_router
 from app.routes.debug import router as debug_router
@@ -42,9 +43,10 @@ def create_app() -> FastAPI:
     app.include_router(status_router, prefix="/api/status", tags=["status"])
     app.include_router(tags_router, prefix="/api/tags", tags=["tags"])
     app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
+    app.include_router(audit_router, prefix="/api/audit_logs", tags=["audit"])
     app.include_router(me.router, prefix="/api", tags=["auth"])
     app.include_router(staff_router, prefix="/api", tags=["staff"])
-
+    app.include_router(audit_router, prefix="/api", tags=["audit"])
     # Keep this for now while stabilizing
     app.include_router(debug_router, prefix="/api", tags=["debug"])
 
