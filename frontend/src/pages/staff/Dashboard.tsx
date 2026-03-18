@@ -22,12 +22,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="stf-task-card" style={{ marginBottom: "40px" }}>
-        <h2 style={{ marginBottom: "12px" }}>Announcements</h2>
-        <p>No new announcements at this time.</p>
-      </div>
-
-      <h2 style={{ marginBottom: "24px" }}>Activity Stream</h2>
+            <h2 style={{ marginBottom: "24px" }}>Activity Stream</h2>
 
       <div className="stf-activity">
         {tasks.length === 0 ? (
