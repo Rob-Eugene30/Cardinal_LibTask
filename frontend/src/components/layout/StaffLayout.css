@@ -380,3 +380,49 @@ body {
 .stf-header-toggle {
   display: none !important;
 }
+.stf-actions {
+  display: flex;
+  gap: 8px;              /* spacing between buttons */
+  margin-top: 12px;
+  flex-wrap: wrap;       /* prevents overflow */
+}
+
+.stf-action-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stf-action-btn:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+.stf-action-btn.active {
+  background: #d71920;
+  color: white;
+}
+.stf-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.stf-action-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: none;
+  background: #f1f3f5;
+  color: #333;
+  cursor: pointer;
+}
+
+.stf-action-btn.active {
+  background: #d71920;
+  color: white;
+}

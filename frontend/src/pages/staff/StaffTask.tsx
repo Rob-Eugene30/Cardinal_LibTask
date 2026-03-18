@@ -73,9 +73,13 @@ export default function StaffTask() {
 
                 <div className="stf-actions">
                   {STATUS_BUTTONS.map((label) => (
-                    <button key={label} className="stf-action-btn" onClick={() => void handleStatusUpdate(task.id, label)}>
-                      {label}
-                    </button>
+                <button
+                    key={label}
+                    className={`stf-action-btn ${task.status === label ? "active" : ""}`}
+                    onClick={() => void handleStatusUpdate(task.id, label)}
+                    >
+  {label}
+</button>
                   ))}
                 </div>
               </div>
